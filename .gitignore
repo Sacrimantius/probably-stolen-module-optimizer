@@ -1,0 +1,7 @@
+# generated for the claude.ai artifact
+module-bay-optimizer.html
+# never commit game art
+*.png
+*.jpg
+_assets/
+node_modules/

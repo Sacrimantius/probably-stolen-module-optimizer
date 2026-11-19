@@ -1,0 +1,1559 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Fan-made module bay simulator and layout optimizer for the game Probably Stolen.">
+<style>html{color-scheme:light}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif}img{max-width:100%}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<title>Module Bay Optimizer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: the bay board is the instrument (left), readouts under it; module locker + optimizer in the right rail. */
+:root {
+  --bg: #e6ebee; --panel: #f6f8f9; --ink: #1a2328; --muted: #5a6870; --line: #c8d1d7;
+  --accent: #0d7480; --accent-ink: #ffffff;
+  --pos: #0a7d8b; --neg: #b8561a;
+  --perf: #c23a3a; --eff: #2f8a35; --qual: #a77e0e;
+  --cell: #d3dbe0; --cell-edge: #bcc7ce; --blocked: #aab6be; --ok: #1f9d55; --bad: #d23c3c;
+  --display: "Pixelify Sans", "Courier New", monospace;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --cs: clamp(38px, 11vw, 60px);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10171b; --panel: #182228; --ink: #dce6ea; --muted: #8d9ca4; --line: #2b3a42;
+  --accent: #5cd0dc; --accent-ink: #062126; --pos: #6ad9e6; --neg: #ff9f5a;
+  --perf: #ff6f6f; --eff: #79d17c; --qual: #f1c64b;
+  --cell: #1c282e; --cell-edge: #2a3a42; --blocked: #0b1013; --ok: #46d17f; --bad: #ff5d5d; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #10171b; --panel: #182228; --ink: #dce6ea; --muted: #8d9ca4; --line: #2b3a42;
+  --accent: #5cd0dc; --accent-ink: #062126; --pos: #6ad9e6; --neg: #ff9f5a;
+  --perf: #ff6f6f; --eff: #79d17c; --qual: #f1c64b;
+  --cell: #1c282e; --cell-edge: #2a3a42; --blocked: #0b1013; --ok: #46d17f; --bad: #ff5d5d; color-scheme: dark; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 14px; line-height: 1.45; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 20px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 18px; }
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 30px; line-height: 1; margin: 0; letter-spacing: .5px; }
+.sub { color: var(--muted); margin: 6px 0 0; max-width: 62ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+label.f { display: grid; gap: 3px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+select, input[type=number], input[type=text], textarea { font: 500 14px var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0; }
+textarea { font-family: var(--mono); font-size: 12px; width: 100%; min-height: 90px; box-sizing: border-box; }
+button { font: 600 13px var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 11px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 18px; align-items: start; }
+@media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.col { display: grid; gap: 18px; min-width: 0; }
+section.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+h2 { font-family: var(--display); font-weight: 500; font-size: 17px; margin: 0 0 10px; letter-spacing: .3px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+h2 small { font-family: var(--body); font-size: 12px; color: var(--muted); font-weight: 400; }
+.mono, .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.P { color: var(--perf); } .E { color: var(--eff); } .Q { color: var(--qual); }
+.pos { color: var(--pos); } .neg { color: var(--neg); }
+h2 { flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; width: fit-content; max-width: 100%; }
+.seg button { border: 0; border-radius: 0; background: transparent; padding: 7px 12px; }
+.seg button[aria-checked="true"] { background: var(--accent); color: var(--accent-ink); }
+.checks { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 6px 0 4px; font-size: 12px; }
+.checks label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+.checks .risk { color: var(--neg); }
+.piece .lock { position: absolute; left: 2px; top: 2px; font: 700 9px var(--mono); letter-spacing: .05em; background: var(--qual); color: var(--bg); border-radius: 3px; padding: 0 3px; line-height: 13px; pointer-events: none; }
+.chip.lock { border-color: var(--qual); background: var(--qual); color: var(--bg); }
+.shop { font-size: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+.shop ul { margin: 4px 0 0; padding-left: 18px; }
+
+/* board */
+.bay-area { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+.board-frame { position: relative; padding: 22px 0 0 22px; }
+.edge-top, .edge-left { position: absolute; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.edge-top { top: 2px; left: 22px; }
+.edge-left { left: 0; top: 22px; writing-mode: vertical-rl; transform: rotate(180deg); height: calc(var(--cs) * 5); text-align: center; }
+.board { position: relative; display: grid; grid-template-columns: repeat(7, var(--cs)); grid-template-rows: repeat(5, var(--cs)); background: var(--cell-edge); gap: 0; border: 2px solid var(--cell-edge); border-radius: 4px; touch-action: none; user-select: none; }
+.board .cell { background: var(--cell); box-shadow: inset 0 0 0 1px var(--cell-edge); }
+.board .cell.blocked { background: repeating-linear-gradient(45deg, var(--blocked) 0 4px, transparent 4px 8px), var(--cell-edge); }
+.piece { position: absolute; cursor: grab; touch-action: none; }
+.piece canvas, .ghost canvas, .thumb canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+.piece.sel { filter: drop-shadow(0 0 0 var(--accent)) drop-shadow(0 0 3px var(--accent)); z-index: 2; }
+.piece.nb { filter: drop-shadow(0 0 2px var(--ok)); }
+.piece .tag { position: absolute; right: 2px; bottom: 2px; font: 600 10px var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 0 3px; line-height: 14px; pointer-events: none; }
+.preview { position: absolute; pointer-events: none; z-index: 5; }
+.preview div { position: absolute; width: var(--cs); height: var(--cs); box-sizing: border-box; border: 2px solid var(--ok); background: color-mix(in srgb, var(--ok) 25%, transparent); }
+.preview.bad div { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 25%, transparent); }
+.ghost { position: fixed; pointer-events: none; z-index: 50; opacity: .85; }
+.hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+kbd { font: 600 11px var(--mono); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--bg); }
+
+/* readouts */
+.readouts { display: grid; gap: 10px; min-width: 210px; flex: 1; }
+.stat { display: grid; grid-template-columns: 92px 1fr 54px; align-items: center; gap: 8px; }
+.stat .lab { font-size: 12px; font-weight: 600; }
+.bar { height: 10px; background: var(--cell); border-radius: 5px; position: relative; overflow: hidden; }
+.bar i { position: absolute; top: 0; bottom: 0; border-radius: 5px; }
+.bar::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--muted); opacity: .6; }
+.stat .v { text-align: right; font: 600 15px var(--mono); }
+.outputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; margin-top: 4px; }
+.out { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.out .k { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.out .val { font: 600 18px var(--mono); }
+.out .was { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.note { font-size: 12px; color: var(--muted); }
+
+/* inspector */
+.insp { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; }
+.insp .thumb { width: 64px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { font-size: 11px; font-weight: 600; border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; background: var(--bg); }
+.chip.fx { border-color: var(--accent); color: var(--accent); }
+.chip.req { border-color: var(--qual); color: var(--qual); }
+.chip.warn { border-color: var(--neg); color: var(--neg); }
+table.bd { border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 8px; }
+table.bd td, table.bd th { padding: 3px 6px; border-bottom: 1px solid var(--line); text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+table.bd td:first-child, table.bd th:first-child { text-align: left; font-family: var(--body); }
+table.bd th { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+table.bd tr.tot td { font-weight: 600; border-bottom: 0; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.fxdesc { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+.fxdesc b { color: var(--ink); font-weight: 600; }
+
+/* locker */
+.locker { display: grid; gap: 6px; max-height: 520px; overflow-y: auto; padding-right: 2px; }
+.mod { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; cursor: pointer; background: var(--bg); }
+.mod.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.mod.off { opacity: .45; }
+.mod .thumb { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; touch-action: none; cursor: grab; }
+.mod .thumb canvas { width: auto; height: auto; max-width: 44px; max-height: 44px; }
+.mod .nm { font-weight: 600; font-size: 13px; line-height: 1.2; }
+.mod .meta { font-size: 11px; color: var(--muted); }
+.mod .st { font: 500 12px var(--mono); text-align: right; white-space: nowrap; }
+.inbay { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); font-weight: 700; }
+.form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 12px; }
+.form .full { grid-column: 1 / -1; }
+.form select, .form input { width: 100%; box-sizing: border-box; }
+.preview-stats { font: 500 12px var(--mono); }
+.goal { display: grid; gap: 10px; }
+.goals { display: grid; gap: 6px; }
+.goalrow { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: start; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+.goalrow .rk { font: 700 14px var(--mono); color: var(--accent); padding-top: 5px; }
+.goalrow .gmain { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+.goalrow .gmain select { max-width: 100%; }
+.goalrow .gbtn { display: flex; gap: 4px; }
+.goalrow .gbtn button { padding: 3px 8px; }
+.jobl { font-size: 12px; color: var(--muted); display: inline-flex; gap: 4px; align-items: center; }
+.glist { margin: 4px 0 0; padding-left: 20px; }
+.toplist { display: grid; gap: 4px; }
+.steps { margin: 6px 0; padding-left: 20px; }
+.steps code { font-family: var(--mono); font-size: 11px; overflow-wrap: anywhere; }
+.filebtn { font: 600 13px var(--body); background: var(--accent); color: var(--accent-ink); border-radius: 6px; padding: 6px 11px; cursor: pointer; }
+.filebtn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.filebtn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+a { color: var(--accent); }
+.toplist .h { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.toprow { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 10px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font-size: 12px; }
+.toprow .rk { font: 700 12px var(--mono); color: var(--muted); grid-row: 1 / span 2; }
+.toprow button { grid-column: 3; grid-row: 1 / span 2; }
+.toprow .note { grid-column: 2; }
+.toprow.on { border-color: var(--accent); }
+.wgrid input { width: 100%; box-sizing: border-box; }
+.wgrid .h { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.prog { height: 6px; background: var(--cell); border-radius: 3px; overflow: hidden; }
+.prog i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+.result { font-size: 13px; }
+.banner { font-size: 12px; border: 1px dashed var(--qual); color: var(--ink); border-radius: 8px; padding: 6px 10px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+details summary { cursor: pointer; font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .prog i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Module Bay Optimizer</h1>
+      <p class="sub">Lay out machine modules for <i>Probably Stolen</i> and see exactly what the bay gives you. The math follows the game's own code: shape bonuses, Receiver, Top/Side Mount, Support nodes and Negative Feedback.</p>
+    </div>
+    <div class="controls">
+      <label class="f" for="machine">Machine<select id="machine"></select></label>
+      <label class="f" for="bay">Module bay<select id="bay"></select></label>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="col">
+      <section class="card">
+        <h2>Bay <small id="bayinfo"></small></h2>
+        <div class="bay-area">
+          <div class="board-frame">
+            <span class="edge-top">Top edge</span>
+            <span class="edge-left">Left edge</span>
+            <div class="board" id="board"></div>
+          </div>
+          <div class="readouts" id="readouts"></div>
+        </div>
+        <p class="hint">Drag modules from <b>My modules</b> onto the bay. While dragging or with a module selected: <kbd>R</kbd> rotate, <kbd>F</kbd> flip, <kbd>L</kbd> lock in place, <kbd>Del</kbd> remove. Drag a module off the bay to take it out.</p>
+      </section>
+
+      <section class="card" id="inspector"></section>
+    </div>
+
+    <div class="col">
+      <section class="card">
+        <h2>Find the best layout <small id="srcnote"></small></h2>
+        <div class="goal">
+          <div class="seg" role="radiogroup" aria-label="Module source">
+            <button type="button" id="src-mine" role="radio">My modules</button>
+            <button type="button" id="src-unl" role="radio">Unlimited modules</button>
+          </div>
+          <div id="unlopts" hidden>
+            <details open>
+              <summary>Modules the optimizer may use (any number of each)</summary>
+              <div class="checks" id="ucats"></div>
+            </details>
+            <label class="f" for="umax" style="margin:6px 0">Effects per module<select id="umax">
+              <option value="2">Up to 2 (any pair, rare to find)</option>
+              <option value="1">At most 1 (easier to find)</option>
+              <option value="0">None (plain modules only)</option>
+            </select></label>
+            <details>
+              <summary>Effects it may roll on them</summary>
+              <div class="checks" id="ueffs"></div>
+            </details>
+          </div>
+          <div class="f">Goal, in order of priority</div>
+          <div id="goals" class="goals"></div>
+          <div class="controls">
+            <label class="f" for="effort">Search effort<select id="effort"><option value="quick">Quick</option><option value="normal" selected>Normal</option><option value="deep">Deep</option></select></label>
+            <button class="primary" id="run">Find best layout</button>
+            <button id="undo" disabled>Undo</button>
+          </div>
+          <div class="prog"><i id="progbar"></i></div>
+          <div class="toplist" id="toplist"></div>
+          <div class="result" id="result"><span class="note">The optimizer works down the list: it gets line 1 as good as it can (or to your target), keeps that, then improves line 2, and so on. Readings use the machine's real rules, so thresholds such as water grades, purity steps and cycles per job are handled for you. Mark a module <b>Must use</b> to force it in somewhere, or <b>Lock</b> it to keep it exactly where it sits.</span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><span id="lockertitle">My modules</span> <small id="count"></small></h2>
+        <div id="shopping"></div>
+        <div id="banner"></div>
+        <div class="locker" id="locker"></div>
+        <form class="form" id="addform" autocomplete="off">
+          <label class="f full" for="fcat">Module<select id="fcat"></select></label>
+          <label class="f" for="fvar">Shape<select id="fvar"></select></label>
+          <label class="f" for="fuses">Finished jobs<input id="fuses" type="number" min="0" value="0"></label>
+          <label class="f" for="fe1">Effect 1<select id="fe1"></select></label>
+          <label class="f" for="fe2">Effect 2<select id="fe2"></select></label>
+          <div class="full preview-stats" id="fprev"></div>
+          <div class="full controls"><button class="primary" type="submit" id="fsubmit">Add module</button><button type="button" id="fcancel" hidden>Cancel edit</button><label class="f" for="fqty" style="margin-left:auto">Copies<input id="fqty" type="number" min="1" max="20" value="1" style="width:64px"></label></div>
+        </form>
+      </section>
+
+      <section class="card">
+        <details id="artbox">
+          <summary>Use your game's sprites <span class="note" id="artstate"></span></summary>
+          <p class="note">This page ships no game art; modules are drawn as simple shapes. To see the real module icons, load the sprite sheet from your own copy of <i>Probably Stolen</i>. It is read in this browser only and is never uploaded.</p>
+          <ol class="note steps">
+            <li>Export the game's assets with <a href="https://github.com/AssetRipper/AssetRipper" target="_blank" rel="noopener">AssetRipper</a> (File → Open Folder → the game's install folder, then Export → Export Primary Content).</li>
+            <li>In the export, find <code>Assets/Resources/items/items_module.png</code>.</li>
+            <li>Choose that file here.</li>
+          </ol>
+          <div class="btns"><label class="filebtn" for="artfile">Choose items_module.png<input id="artfile" type="file" accept="image/png"></label><button id="artclear">Go back to simple shapes</button></div>
+          <p class="note" id="artmsg"></p>
+        </details>
+      </section>
+
+      <section class="card">
+        <details>
+          <summary>Back up or share this setup</summary>
+          <p class="note">Copy the text to keep it, or paste a setup and load it.</p>
+          <textarea id="io" spellcheck="false"></textarea>
+          <div class="btns"><button id="copy">Copy</button><button id="load">Load pasted setup</button><button id="reset">Reset to example</button><span class="note" id="iomsg"></span></div>
+        </details>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+// Module bay engine for Probably Stolen. Mirrors ModuleHelper / ModuleEffectHelper / PreBuiltItemHelper.
+// Wrapped in one function so the page can also ship it to a Web Worker via ENGINE.toString().
+function ENGINE() {
+  const f32 = Math.fround;
+  // C#: (int)((float)value * mult)
+  const mulTrunc = (v, m) => Math.trunc(f32(f32(v) * f32(m)));
+  // C#: int division truncates toward zero
+  const idiv = (a, b) => Math.trunc(a / b);
+
+  const STATS = ['P', 'E', 'Q'];
+
+  // ModuleEffectHelper.moduleEffects
+  const EFFECTS = {
+    PREMIUM:      { name: 'Premium',            kind: 'module', mult: 1.2,  incompat: ['INFERIOR', 'LEARNING'], desc: 'Base stats x1.2.' },
+    INFERIOR:     { name: 'Inferior',           kind: 'module', mult: 0.8,  incompat: ['PREMIUM', 'LEARNING'], desc: 'Base stats x0.8.' },
+    RECEIVER:     { name: 'Receiver',           kind: 'module', incompat: [], desc: '+10% of base stats for each adjacent node.' },
+    TOP_MOUNT:    { name: 'Top Mount',          kind: 'module', incompat: [], desc: '+20% of base stats while touching the top edge of the bay.' },
+    SIDE_MOUNT:   { name: 'Side Mount',         kind: 'module', incompat: [], desc: '+20% of base stats while touching the left edge of the bay.' },
+    OVERVOLTED:   { name: 'Overvolted',         kind: 'module', mult: 2,    incompat: ['LEARNING'], desc: 'Base stats x2. 10% chance per finished job to turn into a Ruined Module.' },
+    DEGRADING:    { name: 'Degrading',          kind: 'module', mult: 2,    incompat: ['LEARNING'], desc: 'Base stats x2. Every finished job lowers each positive base stat by 1.' },
+    LEARNING:     { name: 'Learning Algorithm', kind: 'module', incompat: ['DEGRADING', 'OVERVOLTED', 'PREMIUM', 'INFERIOR', 'NEG_FEEDBACK'], desc: 'Positive base stats start at 0 and gain 1 per finished job, up to 2x the original.' },
+    NEG_FEEDBACK: { name: 'Negative Feedback',  kind: 'module', mult: 1.25, incompat: ['LEARNING'], desc: 'Base stats x1.25, but takes 1/4 of the negative base stats of every adjacent item.' },
+    SUPPORT:      { name: 'Support',            kind: 'node',   incompat: [], desc: 'Gets 1/5 of the base stats of every adjacent module (negatives too).' },
+  };
+
+  // Shape variants from PreBuiltItemHelper.SetBasicModuleShape / SetAdvancedModuleShape
+  const VARIANTS = {
+    basic: [
+      { id: '', name: 'Square', mult: 1, chance: '24%' },
+      { id: '_l', name: 'L', mult: 1, chance: '26%' },
+      { id: '_t', name: 'T', mult: 1, chance: '25%' },
+      { id: '_c', name: 'C (x0.75)', mult: 0.75, chance: '25%' },
+    ],
+    advanced: [
+      { id: '', name: 'Square', mult: 1, chance: '33%' },
+      { id: '_s', name: 'S (x1.25)', mult: 1.25, chance: '34%' },
+      { id: '_h', name: 'H (x1.25)', mult: 1.25, chance: '33%' },
+    ],
+  };
+
+  // ModuleDirectory: [performance, efficiency, quality]
+  const CATALOG = [
+    { id: 'system_module_performance', name: 'Performance Module', sprite: 'module_red', base: [16, 0, 0], type: 'UNIVERSAL', variants: 'basic' },
+    { id: 'system_module_efficiancy', name: 'Efficiency Module', sprite: 'module_green', base: [0, 16, 0], type: 'UNIVERSAL', variants: 'basic' },
+    { id: 'system_module_quality', name: 'Quality Module', sprite: 'module_yellow', base: [0, 0, 8], type: 'UNIVERSAL', variants: 'basic' },
+    { id: 'system_module_overclock', name: 'Overclock Module', sprite: 'module_red_2', base: [36, -44, 0], type: 'UNIVERSAL', variants: 'advanced' },
+    { id: 'system_module_eco', name: 'Eco Module', sprite: 'module_green_2', base: [-16, 32, 0], type: 'UNIVERSAL', variants: 'advanced' },
+    { id: 'system_module_fineness', name: 'Fineness Module', sprite: 'module_yellow_2', base: [-8, -15, 25], type: 'UNIVERSAL', variants: 'advanced' },
+    { id: 'system_module_streamlining', name: 'Streamlining Module', sprite: 'module_green_3', base: [8, 25, -16], type: 'UNIVERSAL' },
+    { id: 'system_capped_neural_core', name: 'Capped Neural Core', sprite: 'module_black_4', base: [100, -100, 50], type: 'UNIVERSAL' },
+    { id: 'system_uncapped_neural_core', name: 'Uncapped Neural Core', sprite: 'module_black_5', base: [200, -100, 100], type: 'UNIVERSAL' },
+    { id: 'blank_module', name: 'Blank Module', sprite: 'module_white', base: [0, 0, 0], type: 'UNIVERSAL' },
+    { id: 'system_module_corrupt', name: 'Corrupted Module', sprite: 'module_corrupt', base: [-8, -5, 0], type: 'UNIVERSAL' },
+    { id: 'glitched_module', name: 'Glitched Module (stuck)', sprite: 'module_corrupt', base: [15, -15, 0], type: 'UNIVERSAL' },
+    { id: 'system_module_ruined', name: 'Ruined Module', sprite: 'module_ruined', base: [0, 0, 0], type: 'UNIVERSAL' },
+    { id: 'node_medium', name: 'Node', sprite: 'node_m', base: [0, 0, 0], type: 'UNIVERSAL', node: true },
+    { id: 'node_small', name: 'Small Node', sprite: 'node_s', base: [0, 0, 0], type: 'UNIVERSAL', node: true, noEffects: true },
+    { id: 'farm_module_nutrifruit', name: 'Nutrifruit Module', sprite: 'farm_module_l2', base: [-10, -10, 0], type: 'HYDROPONIC', extra: 'Nutrifruit yield +1' },
+    { id: 'farm_module_dream_cap', name: 'Dream Cap Neutralizer', sprite: 'farm_module_l4', base: [15, 15, 0], type: 'HYDROPONIC', extra: 'Dream cap yield +2' },
+    { id: 'farm_module_kotton_loom', name: 'Kotton Loom Module', sprite: 'farm_module_l1', base: [-50, -100, 0], type: 'HYDROPONIC', extra: 'Produces kotton fabric' },
+    { id: 'farm_module_nightmare_cap', name: 'Nightmare Cap Module', sprite: 'farm_module5', base: [-33, -50, 0], type: 'HYDROPONIC', extra: 'Nightmare cap' },
+    { id: 'farm_module_fillerweed_production', name: 'Fillerweed Production', sprite: 'farm_module_l5', base: [0, -25, 0], type: 'HYDROPONIC', extra: 'Fillerweed yield +4' },
+    { id: 'farm_module_hydroreed_filter', name: 'Hydroreed Filter', sprite: 'farm_module_l6', base: [0, -15, 0], type: 'HYDROPONIC', extra: 'Hydroreed yield +1' },
+    { id: 'farm_module_smuggler', name: 'Smuggler Module', sprite: 'farm_module6', base: [0, 0, 0], type: 'HYDROPONIC', extra: 'Removes contraband' },
+    { id: 'evaporator_module_solvent_recovery', name: 'Solvent Recovery', sprite: 'long_module1', base: [0, -25, 50], type: 'EVAPORATOR', extra: 'Solvent only' },
+    { id: 'dna_manipulator_module_stabilizer', name: 'DNA Stabilizer', sprite: 'long_module1', base: [-50, -25, 0], type: 'DNA_MANIPULATOR', extra: 'Stabilizer' },
+    { id: 'dna_manipulator_module_positive_filter', name: 'DNA Positive Filter', sprite: 'long_module1', base: [0, -25, 0], type: 'DNA_MANIPULATOR', extra: 'Positive filter' },
+    { id: 'dna_manipulator_module_negative_filter', name: 'DNA Negative Filter', sprite: 'long_module1', base: [0, -25, 0], type: 'DNA_MANIPULATOR', extra: 'Negative filter' },
+    { id: 'dna_manipulator_module_precision', name: 'DNA Precision', sprite: 'long_module1', base: [-75, -75, 0], type: 'DNA_MANIPULATOR', extra: 'Precision' },
+    { id: 'printer_module_metal', name: 'Metal Printing Module', sprite: 'long_module1', base: [0, -50, 0], type: 'PRINTER', extra: 'Metal printing' },
+    { id: 'printer_module_melee_batch', name: 'Melee Batch Module', sprite: 'long_module2', base: [-50, -50, 0], type: 'PRINTER', extra: 'Melee output +1' },
+    { id: 'printer_module_cnc', name: 'CNC Module', sprite: 'long_module3', base: [-25, -25, 0], type: 'PRINTER', extra: 'CNC printing' },
+    { id: 'alarm_module_transmitter', name: 'Alarm Transmitter', sprite: 'farm_module_l7', base: [0, -50, 0], type: 'ALARM', extra: 'Reputation +1' },
+    { id: 'furnace_module_blast', name: 'Blast Furnace Module', sprite: 'farm_module_l8', base: [0, -100, 0], type: 'FURNACE', extra: 'Blast furnace 3 to 2' },
+    { id: 'furnace_module_junk', name: 'Junk Module', sprite: 'long_module3', base: [0, 0, 0], type: 'FURNACE', extra: 'Junk 6 to 4' },
+  ];
+  const CAT = Object.fromEntries(CATALOG.map(c => [c.id, c]));
+
+  const FULL = '0'.repeat(35);
+  const BAYS = [
+    { name: 'Standard bay', mask: '10000010001000001110000010001000001' },
+    { name: 'Expansion 1', mask: '10000010000000000000000000001000001' },
+    { name: 'Expansion 2', mask: FULL },
+  ];
+
+  // Machine*.cs: InitMachinery power, InitProgressTypeMachine speed, *_RATIO_INT tags, allowed module types
+  // Machine*.cs: InitMachinery power, InitProgressTypeMachine speed, *_RATIO_INT tags, allowed module types.
+  // adjQ: machine reads quality through GetAjustedQuality (total / qr). noQ: quality is not read at all.
+  const MACHINES = [
+    { id: 'hydroponic', name: 'Hydroponic Bay', power: 8, speed: 8, pr: 2, qr: 2, adjQ: true, types: ['HYDROPONIC'], uses: 'Quality bonus improves the harvest split (bigger, healthier plants).' },
+    { id: 'dna', name: 'DNA Manipulator', power: 12, speed: 10, pr: 2, qr: 2, adjQ: true, types: ['DNA_MANIPULATOR'], uses: 'Quality bonus raises gene-edit success chance.' },
+    { id: 'printer', name: '3D Printer', power: 8, speed: 24, qr: 4, adjQ: true, types: ['PRINTER'], uses: 'Quality bonus raises printed item quality.' },
+    { id: 'winerack', name: 'Wine Rack', power: 24, pr: 2, er: 2, perfCutsPower: true, types: [], uses: 'Performance also cuts power draw.' },
+    { id: 'dealmaker', name: 'Deal Maker', power: 25, qr: 10, adjQ: true, dealMaker: true, types: [], uses: 'Performance and efficiency both cut power.' },
+    { id: 'projector', name: 'Projector', power: 16, pr: 4, qr: 2, types: [] },
+    { id: 'purifier', name: 'Water Purifier', power: 4, types: [] },
+    { id: 'desequencer', name: 'Desequencer', power: 10, speed: 33, noQ: true, types: ['ALARM'] },
+    { id: 'furnace', name: 'Furnace', power: 8, types: ['FURNACE'], purity: true, uses: 'Performance is not used. Ingot purity +1 step per 100 quality (-1 with a Blast Furnace Module).' },
+    { id: 'moisture', name: 'Moisture Farm', power: 6, types: [] },
+    { id: 'alarm', name: 'Alarm', power: 4, noQ: true, types: ['ALARM'] },
+    { id: 'evaporator', name: 'Evaporator', power: 6, types: ['EVAPORATOR'], noExpansion: true },
+  ];
+
+  function variantMult(cat, variant) {
+    if (!cat.variants) return 1;
+    const v = VARIANTS[cat.variants].find(v => v.id === (variant || ''));
+    return v ? v.mult : 1;
+  }
+  function spriteName(cat, variant) { return cat.sprite + (cat.variants ? (variant || '') : ''); }
+
+  // Effects a module may carry in slot 2 given slot 1 (ModuleEffectHelper.AddEffectToModule)
+  function allowedSecond(first, isNode) {
+    return Object.keys(EFFECTS).filter(k => {
+      const e = EFFECTS[k];
+      if (isNode || e.kind !== 'module') return false;
+      if (!first) return true;
+      return k !== first && !EFFECTS[first].incompat.includes(k);
+    });
+  }
+
+  // Base stats after shape multiplier, creation effects and use count
+  function baseStats(inst) {
+    const cat = CAT[inst.cat];
+    let b = cat.base.slice();
+    const m = variantMult(cat, inst.variant);
+    if (m !== 1) b = b.map(v => mulTrunc(v, m));
+    let learnMax = null;
+    const effs = (inst.effects || []).filter(Boolean);
+    for (const e of effs) {
+      const E = EFFECTS[e];
+      if (E.mult) b = b.map(v => mulTrunc(v, E.mult));
+      if (e === 'LEARNING') { learnMax = b.map(v => (v > 0 ? v * 2 : null)); b = b.map(v => (v > 0 ? 0 : v)); }
+    }
+    const uses = Math.max(0, inst.uses | 0);
+    if (learnMax) b = b.map((v, i) => (learnMax[i] != null ? Math.min(learnMax[i], uses) : v));
+    if (effs.includes('DEGRADING')) b = b.map(v => (v > 0 ? Math.max(0, v - uses) : v));
+    return { base: b, learnMax };
+  }
+
+  function shapeOf(rows) {
+    const cells = [];
+    rows.forEach((r, y) => [...r].forEach((c, x) => { if (c === '1') cells.push([x, y]); }));
+    return { cells, w: rows[0].length, h: rows.length };
+  }
+  // flip horizontally first, then rotate 90deg clockwise `rot` times
+  function orient(shape, rot, flip) {
+    let { cells, w, h } = shape;
+    if (flip) cells = cells.map(([x, y]) => [w - 1 - x, y]);
+    for (let r = 0; r < rot; r++) { cells = cells.map(([x, y]) => [h - 1 - y, x]); [w, h] = [h, w]; }
+    return { cells, w, h };
+  }
+  function orientations(shape) {
+    const out = [], seen = new Set();
+    for (let flip = 0; flip < 2; flip++) for (let rot = 0; rot < 4; rot++) {
+      const o = orient(shape, rot, flip);
+      const key = o.w + 'x' + o.h + ':' + o.cells.map(c => c.join(',')).sort().join(';');
+      if (seen.has(key)) continue;
+      seen.add(key); out.push({ rot, flip, ...o });
+    }
+    return out;
+  }
+
+  // items: [{ base:[P,E,Q], node:bool, effects:[..], cells:[[x,y]..] (global) }]
+  // Returns per-item temp stats, breakdown lines and totals (ModuleEffectHelper.ComputeAllModuleTempStat)
+  function evaluate(items, W, H) {
+    const owner = new Int16Array(W * H).fill(-1);
+    items.forEach((it, i) => it.cells.forEach(([x, y]) => { owner[y * W + x] = i; }));
+    const nb = items.map(() => new Set());
+    items.forEach((it, i) => it.cells.forEach(([x, y]) => {
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const j = owner[ny * W + nx];
+        if (j >= 0 && j !== i) nb[i].add(j);
+      }
+    }));
+    const totals = [0, 0, 0];
+    const out = items.map((it, i) => {
+      const temp = it.base.slice();
+      const lines = [];
+      const add = (label, d) => { if (d.some(v => v)) { lines.push({ label, d }); d.forEach((v, k) => { temp[k] += v; }); } };
+      const minX = Math.min(...it.cells.map(c => c[0])), minY = Math.min(...it.cells.map(c => c[1]));
+      for (const e of it.effects || []) {
+        if (e === 'RECEIVER') {
+          const n = [...nb[i]].filter(j => items[j].node).length;
+          if (n) add(`Receiver (${n} node${n > 1 ? 's' : ''})`, it.base.map(v => idiv(v * 10 * n, 100)));
+        } else if (e === 'TOP_MOUNT') {
+          if (minY <= 0) add('Top Mount', it.base.map(v => idiv(v * 20, 100)));
+        } else if (e === 'SIDE_MOUNT') {
+          if (minX <= 0) add('Side Mount', it.base.map(v => idiv(v * 20, 100)));
+        } else if (e === 'NEG_FEEDBACK') {
+          const s = [0, 0, 0];
+          nb[i].forEach(j => items[j].base.forEach((v, k) => { if (v < 0) s[k] += v; }));
+          add('Negative Feedback', s.map(v => idiv(v, 4)));
+        } else if (e === 'SUPPORT') {
+          const s = [0, 0, 0];
+          nb[i].forEach(j => { if (!items[j].node) items[j].base.forEach((v, k) => { s[k] += v; }); });
+          const set = s.map(v => idiv(v, 5));
+          const d = set.map((v, k) => v - temp[k]);
+          add('Support', d);
+        }
+      }
+      temp.forEach((v, k) => { totals[k] += v; });
+      return { temp, lines, neighbors: [...nb[i]] };
+    });
+    return { items: out, totals };
+  }
+
+  // ModuleHelper.ApplyBasicModuleEffect / GetAjustedQuality / MachineDealMaker.UpdatePowerUse
+  function machineOutput(m, totals, ctx = {}) {
+    const [P, E, Q] = totals;
+    const r = {};
+    if (m.speed) r.speed = m.pr ? Math.trunc(f32(m.speed + f32(idiv(m.speed * P, m.pr) / 100))) : m.speed + idiv(m.speed * P, 100);
+    let power;
+    if (m.dealMaker) power = m.power - idiv(m.power * (E + P), 100);
+    else {
+      power = m.power - idiv(m.power * E, 100);
+      if (m.er) power = Math.trunc(f32(m.power - f32(idiv(m.power * E, m.er) / 100)));
+      if (m.perfCutsPower && m.pr) power -= Math.trunc(f32(idiv(m.power * P, m.pr) / 100));
+    }
+    r.power = Math.max(1, power);
+    r.quality = m.adjQ ? idiv(Q, m.qr) : null;
+    if (m.purity) r.purity = idiv(Q, 100) - (ctx.blast ? 1 : 0);
+    if (m.dealMaker) r.bargain = Math.max(0, 10 + idiv(Q, m.qr));
+    // machine-specific readings of the raw totals: [{ k: label, v: value, was: value with an empty bay, note }]
+    const x = r.extra = [];
+    if (m.id === 'moisture') {
+      // MachineMoistureFarm.GetOutputVolume / GetOutputQuality
+      const grade = q => { const n = q + 50; return n < 0 ? 'Gutterflow' : n < 50 ? 'Rustwater' : n < 100 ? 'Ghostwater' : n < 150 ? 'Basewater' : n < 200 ? 'High Quality Water' : 'Pure Water'; };
+      x.push({ k: 'Water per night', v: Math.max(850 * (100 + P) / 100, 0).toFixed(0) + ' L', was: '850 L', note: 'less when several farms share the air' });
+      x.push({ k: 'Water grade', v: grade(Q), was: grade(0), note: 'Basewater at Q 50, High Quality at 100, Pure at 150' });
+    } else if (m.id === 'evaporator') {
+      // MachineEvaporator: 300000 per cycle x (1 + P/100); distillate = evaporated x clamp(Q, 0, 100)%
+      x.push({ k: 'Evaporation per cycle', v: Math.round(300 * Math.max(0, 1 + P / 100)) + ' L', was: '300 L' });
+      x.push({ k: 'Recovered as distillate', v: Math.max(0, Math.min(100, Q)) + '%', was: '0%', note: 'caps at 100% (Q 100)' });
+    } else if (m.id === 'purifier') {
+      // MachinePurifier.GetPurityMult / GetMaxPurityCap; performance adds to dirt removal
+      const mult = Q >= 200 ? 0 : Q >= 100 ? 0.1 : Q >= 75 ? 0.2 : Q >= 50 ? 0.35 : Q >= 25 ? 0.65 : Q >= 15 ? 0.85 : 1;
+      x.push({ k: 'Max water purity', v: ((10000 - Math.round(99 * mult)) / 100).toFixed(2) + '%', was: '99.01%', note: 'steps at Q 15, 25, 50, 75, 100, 200' });
+      x.push({ k: 'Dirt removal', v: (P >= 0 ? '+' : '') + P + '%', was: '+0%' });
+    } else if (m.id === 'winerack') {
+      x.push({ k: 'Aging per cycle', v: (1 + idiv(Math.max(0, Q), 125)) + ' days', was: '1 day', note: '+1 day per 125 quality' });
+    } else if (m.id === 'projector') {
+      // MachineProjector.GetAttractivenessBoost
+      x.push({ k: 'Attractiveness', v: Math.max(0, 100 + idiv(Q, m.qr) + idiv(P, m.pr)) + '%', was: '100%', note: 'quality/2 + performance/4' });
+    } else if (m.id === 'alarm') {
+      // MachineAlarm.GetAlarmeStopRate, rolled as RNG.Roll(rate + 1)
+      x.push({ k: 'Chance to stop a burglary', v: Math.min(100, Math.max(0, P + 50) + 1) + '%', was: '51%' });
+    }
+    return r;
+  }
+
+  const PURITY = { 5: 'Very Low', 6: 'Low', 7: 'Fair', 8: 'High', 9: 'Very High', 10: 'Perfect' };
+  const GRADES = ['Gutterflow', 'Rustwater', 'Ghostwater', 'Basewater', 'High Quality Water', 'Pure Water'];
+  const gradeIndex = q => { const n = q + 50; return n < 0 ? 0 : n < 50 ? 1 : n < 100 ? 2 : n < 150 ? 3 : n < 200 ? 4 : 5; };
+  const purifierCap = q => { const mult = q >= 200 ? 0 : q >= 100 ? 0.1 : q >= 75 ? 0.2 : q >= 50 ? 0.35 : q >= 25 ? 0.65 : q >= 15 ? 0.85 : 1; return 10000 - Math.round(99 * mult); };
+  // Job sizes (MACHINE_PROGRESS_TARGET): a job takes ceil(size / speed) cycles
+  const JOBS = {
+    desequencer: [[75, 'SUP / SER keycard chip'], [100, 'MED / ENG keycard chip'], [125, 'SEC keycard chip'], [150, 'CMD keycard chip']],
+    printer: [[10, 'Small bottle'], [20, 'Makeshift RDS, toy laser, springs'], [24, 'RDS, laser, silencer, .22 mag'], [36, '.22 high-cap, 10mm mag'], [48, '.22 extended, 10mm high-cap'], [50, '.22 pistol'], [60, '2x .22 pistol, 10mm extended'], [34, 'Box cutter'], [64, 'Kitchen knife'], [75, 'Hatchet'], [82, 'Meat cleaver'], [98, 'Combat knife'], [120, 'Combat machete']],
+    hydroponic: [[11, 'Fillerweed'], [18, 'Hydroreed, Bloomberry'], [21, 'Coffee'], [23, 'Nutrifruit'], [28, 'Dream Cap'], [32, 'Kotton']],
+    dna: [[20, 'Complexity 0'], [24, 'Complexity 1'], [28, 'Complexity 2'], [32, 'Complexity 3'], [40, 'Complexity 5']],
+  };
+  // Each reading: { id, label, w (stat mix it grows with), value(totals, opts) higher = better, show(value), low (lower is better for the player), levels? }
+  function readings(m, ctx = {}) {
+    const out = [];
+    const R = (id, label, w, value, show, extra = {}) => out.push({ id, label, w, value, show, ...extra });
+    const out0 = t => machineOutput(m, t, ctx);
+    const pw = m.dealMaker ? [1, 1, 0] : m.perfCutsPower ? [0.5, 0.5, 0] : [0, 1, 0];
+    if (m.purity) {
+      const lvl = (t, share) => Math.max(5, Math.min(10, 6 + share + out0(t).purity));
+      const levels = [5, 6, 7, 8, 9, 10].map(v => ({ v, label: PURITY[v] }));
+      R('purity_ore', 'Ingot purity, all-ore input', [0, 0, 1], t => lvl(t, 2), v => PURITY[v], { levels });
+      R('purity_scrap', 'Ingot purity, all-scrap input', [0, 0, 1], t => lvl(t, 0), v => PURITY[v], { levels });
+    }
+    if (m.speed) {
+      R('cycles', 'Cycles per job', [1, 0, 0], (t, o = {}) => -Math.ceil((o.job || 100) / Math.max(1, out0(t).speed)), v => -v + ' cycle' + (v === -1 ? '' : 's'), { low: true, job: true });
+      R('speed', 'Processing speed', [1, 0, 0], t => out0(t).speed, v => v + ' per cycle');
+    }
+    if (m.dealMaker) R('bargain', 'Bargain bonus', [0, 0, 1], t => out0(t).bargain, v => v + '%');
+    else if (m.adjQ) R('qbonus', 'Quality bonus', [0, 0, 1], t => out0(t).quality, v => (v > 0 ? '+' : '') + v);
+    if (m.id === 'moisture') {
+      R('grade', 'Water grade', [0, 0, 1], t => gradeIndex(t[2]), v => GRADES[v], { levels: GRADES.map((label, v) => ({ v, label })) });
+      R('water', 'Water per night', [1, 0, 0], t => Math.max(850 * (100 + t[0]) / 100, 0), v => Math.round(v) + ' L');
+    } else if (m.id === 'evaporator') {
+      R('distil', 'Recovered as distillate', [0, 0, 1], t => Math.max(0, Math.min(100, t[2])), v => v + '%');
+      R('evap', 'Evaporation per cycle', [1, 0, 0], t => Math.round(300 * Math.max(0, 1 + t[0] / 100)), v => v + ' L');
+    } else if (m.id === 'purifier') {
+      R('maxpur', 'Max water purity', [0, 0, 1], t => purifierCap(t[2]), v => (v / 100).toFixed(2) + '%');
+      R('dirt', 'Dirt removal', [1, 0, 0], t => t[0], v => (v > 0 ? '+' : '') + v + '%');
+    } else if (m.id === 'winerack') {
+      R('aging', 'Aging per cycle', [0, 0, 1], t => 1 + idiv(Math.max(0, t[2]), 125), v => v + ' day' + (v === 1 ? '' : 's'));
+    } else if (m.id === 'projector') {
+      R('attract', 'Attractiveness', [0.25, 0, 0.5], t => Math.max(0, 100 + idiv(t[2], m.qr) + idiv(t[0], m.pr)), v => v + '%');
+    } else if (m.id === 'alarm') {
+      R('stop', 'Chance to stop a burglary', [1, 0, 0], t => Math.min(100, Math.max(0, t[0] + 50) + 1), v => v + '%');
+    }
+    R('power', 'Power draw', pw, t => -out0(t).power, v => -v + ' power', { low: true });
+    R('rawP', 'Performance total', [1, 0, 0], t => t[0], v => (v > 0 ? '+' : '') + v + '%');
+    R('rawE', 'Efficiency total', [0, 1, 0], t => t[1], v => (v > 0 ? '+' : '') + v + '%');
+    R('rawQ', 'Quality total', [0, 0, 1], t => t[2], v => (v > 0 ? '+' : '') + v + '%');
+    return out;
+  }
+  // The smallest stat mix value (in units of reading.w) that gives at least `target`; null if out of reach.
+  function floorFor(rd, target, o = {}) {
+    const k = rd.w.reduce((a, x, i) => (Math.abs(x) > Math.abs(rd.w[a]) ? i : a), 0);
+    for (let v = -2000; v <= 4000; v++) {
+      const t = [0, 0, 0]; t[k] = Math.round(v / rd.w[k]);
+      if (rd.value(t, o) >= target - 1e-9) return v;
+    }
+    return null;
+  }
+  // Mix value past which the reading cannot improve (null = keeps improving)
+  function usefulCap(rd, o = {}) {
+    const k = rd.w.reduce((a, x, i) => (Math.abs(x) > Math.abs(rd.w[a]) ? i : a), 0);
+    const t = [0, 0, 0]; t[k] = Math.round(4000 / rd.w[k]);
+    const v = floorFor(rd, rd.value(t, o), o);
+    return v == null || v >= 3990 ? null : v;
+  }
+  const mixOf = (w, t) => w[0] * t[0] + w[1] * t[1] + w[2] * t[2];
+
+  function allowedIn(m, cat) { return cat.type === 'UNIVERSAL' || m.types.includes(cat.type); }
+
+  // ---------- design generation for unlimited mode ----------
+  const POSITIONAL = ['RECEIVER', 'TOP_MOUNT', 'SIDE_MOUNT', 'NEG_FEEDBACK', 'SUPPORT'];
+  // Every module design (module x shape x effect combo) built from the allowed lists,
+  // pruned to the Pareto front of base stats among designs with the same sprite and positional effects.
+  function unlimitedDesigns(catIds, effectIds, maxEffects = 2) {
+    const effAllowed = new Set(effectIds);
+    const out = [];
+    for (const id of catIds) {
+      const cat = CAT[id];
+      const variants = cat.variants ? VARIANTS[cat.variants].map(v => v.id) : [''];
+      const combos = [[]];
+      if (cat.node) { if (maxEffects >= 1 && effAllowed.has('SUPPORT') && !cat.noEffects) combos.push(['SUPPORT']); }
+      else {
+        const mods = Object.keys(EFFECTS).filter(k => EFFECTS[k].kind === 'module' && effAllowed.has(k));
+        if (maxEffects >= 1) mods.forEach(a => combos.push([a]));
+        if (maxEffects >= 2) mods.forEach((a, i) => mods.slice(i + 1).forEach(b => {
+          if (!EFFECTS[a].incompat.includes(b)) combos.push([a, b]);
+          else if (!EFFECTS[b].incompat.includes(a)) combos.push([b, a]);
+        }));
+      }
+      for (const variant of variants) {
+        const groups = {};
+        for (const effects of combos) {
+          const inst = { cat: id, variant, effects, uses: 0 };
+          const { base, learnMax } = baseStats(inst);
+          if (learnMax) inst.uses = Math.max(...learnMax.filter(x => x != null)); // fully trained
+          const b = baseStats(inst).base;
+          const key = effects.filter(e => POSITIONAL.includes(e)).sort().join('+');
+          (groups[key] = groups[key] || []).push({ inst, base: b });
+        }
+        for (const list of Object.values(groups)) {
+          list.forEach((d, i) => {
+            const dominated = list.some((o, j) => j !== i && o.base.every((v, k) => v >= d.base[k]) &&
+              (o.base.some((v, k) => v > d.base[k]) || (o.inst.effects.length < d.inst.effects.length) || (o.inst.effects.length === d.inst.effects.length && j < i)));
+            if (!dominated) out.push(d.inst);
+          });
+        }
+      }
+    }
+    return out;
+  }
+
+  // ---------- optimizer (simulated annealing over placements) ----------
+  // opts: { mask, W, H, weights:[3], mins:[3|null], iters, restarts, seed,
+  //   designs:[{ base, node, effects, shape:{cells,w,h}, count (number or Infinity), min (must-place count), fixed: {rot,flip,x,y} | null }] }
+  // A design with fixed set is one locked module: always placed there, never moved.
+  function optimize(opts, progress) {
+    const { mask, W, H } = opts;
+    const designs = opts.designs;
+    const open = [...mask].map(c => c === '0');
+    let seed = opts.seed >>> 0 || 12345;
+    const rnd = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >>> 17; seed ^= seed << 5; seed >>>= 0; return seed / 4294967296; };
+
+    // legal placements per shape (shared between designs with the same shape)
+    const shapeCache = {};
+    const places = designs.map(d => {
+      const key = d.shape.w + 'x' + d.shape.h + ':' + d.shape.cells.join(';');
+      if (!shapeCache[key]) {
+        const list = [];
+        orientations(d.shape).forEach(o => {
+          for (let y = 0; y + o.h <= H; y++) for (let x = 0; x + o.w <= W; x++) {
+            const idx = o.cells.map(([cx, cy]) => (y + cy) * W + x + cx);
+            if (idx.every(i => open[i])) list.push({ rot: o.rot, flip: o.flip, x, y, idx });
+          }
+        });
+        shapeCache[key] = list;
+      }
+      return shapeCache[key];
+    });
+    const D = designs.length;
+    // entries: placed modules. ed = design index, ep = placement index
+    let ed = [], ep = [];
+    const used = new Int32Array(D);
+    const owner = new Int16Array(W * H).fill(-1);
+    const fixedOwner = new Uint8Array(W * H);
+    // Goal terms: value = w . totals; score += scale * min(value, cap); value below min is penalised.
+    // Older callers pass weights / mins / caps per stat; those become one term per stat.
+    const terms = opts.terms || [0, 1, 2].map(k => ({ w: [0, 1, 2].map(j => (j === k ? 1 : 0)), scale: opts.weights[k], cap: (opts.caps || [])[k] ?? null, min: (opts.mins || [])[k] ?? null }));
+    // a capped stat earns nothing above its cap
+    const PEN = 50;
+
+    function addEntry(d, p) {
+      const e = ed.length; ed.push(d); ep.push(p); used[d]++;
+      for (const c of places[d][p].idx) owner[c] = e;
+    }
+    function removeEntry(e) {
+      const d = ed[e], p = ep[e];
+      for (const c of places[d][p].idx) owner[c] = -1;
+      used[d]--;
+      const last = ed.length - 1;
+      if (e !== last) {
+        ed[e] = ed[last]; ep[e] = ep[last];
+        for (const c of places[ed[e]][ep[e]].idx) owner[c] = e;
+      }
+      ed.pop(); ep.pop();
+      return [d, p];
+    }
+
+    const totals = [0, 0, 0];
+    function score() {
+      totals[0] = totals[1] = totals[2] = 0;
+      let effCount = 0;
+      const nbs = [];
+      for (let e = 0; e < ed.length; e++) {
+        const it = designs[ed[e]], pl = places[ed[e]][ep[e]];
+        const t0 = it.base[0], t1 = it.base[1], t2 = it.base[2];
+        let d0 = 0, d1 = 0, d2 = 0, set = null;
+        effCount += it.effects.length;
+        if (it.effects.length) {
+          nbs.length = 0;
+          for (const c of pl.idx) {
+            const x = c % W, y = (c - x) / W;
+            if (x + 1 < W) { const j = owner[c + 1]; if (j >= 0 && j !== e && !nbs.includes(j)) nbs.push(j); }
+            if (x > 0) { const j = owner[c - 1]; if (j >= 0 && j !== e && !nbs.includes(j)) nbs.push(j); }
+            if (y + 1 < H) { const j = owner[c + W]; if (j >= 0 && j !== e && !nbs.includes(j)) nbs.push(j); }
+            if (y > 0) { const j = owner[c - W]; if (j >= 0 && j !== e && !nbs.includes(j)) nbs.push(j); }
+          }
+          for (const ef of it.effects) {
+            if (ef === 'RECEIVER') {
+              let n = 0; for (const j of nbs) if (designs[ed[j]].node) n++;
+              d0 += idiv(t0 * 10 * n, 100); d1 += idiv(t1 * 10 * n, 100); d2 += idiv(t2 * 10 * n, 100);
+            } else if (ef === 'TOP_MOUNT') {
+              if (pl.y <= 0) { d0 += idiv(t0 * 20, 100); d1 += idiv(t1 * 20, 100); d2 += idiv(t2 * 20, 100); }
+            } else if (ef === 'SIDE_MOUNT') {
+              if (pl.x <= 0) { d0 += idiv(t0 * 20, 100); d1 += idiv(t1 * 20, 100); d2 += idiv(t2 * 20, 100); }
+            } else if (ef === 'NEG_FEEDBACK') {
+              let s0 = 0, s1 = 0, s2 = 0;
+              for (const j of nbs) { const b = designs[ed[j]].base; if (b[0] < 0) s0 += b[0]; if (b[1] < 0) s1 += b[1]; if (b[2] < 0) s2 += b[2]; }
+              d0 += idiv(s0, 4); d1 += idiv(s1, 4); d2 += idiv(s2, 4);
+            } else if (ef === 'SUPPORT') {
+              let s0 = 0, s1 = 0, s2 = 0;
+              for (const j of nbs) if (!designs[ed[j]].node) { const b = designs[ed[j]].base; s0 += b[0]; s1 += b[1]; s2 += b[2]; }
+              set = [idiv(s0, 5), idiv(s1, 5), idiv(s2, 5)];
+            }
+          }
+        }
+        if (set) { totals[0] += set[0]; totals[1] += set[1]; totals[2] += set[2]; }
+        else { totals[0] += t0 + d0; totals[1] += t1 + d1; totals[2] += t2 + d2; }
+      }
+      let missing = 0;
+      for (let d = 0; d < D; d++) if (designs[d].min > used[d]) missing += designs[d].min - used[d];
+      let s = -0.01 * ed.length - 0.001 * effCount - 1e4 * missing; // tie-breaks: fewer modules, then fewer effects
+      for (const t of terms) {
+        const v = t.w[0] * totals[0] + t.w[1] * totals[1] + t.w[2] * totals[2];
+        if (t.scale) s += t.scale * (t.cap != null && v > t.cap ? t.cap : v);
+        if (t.min != null && v < t.min - 1e-9) s -= PEN * (t.min - v) + 100;
+      }
+      return s;
+    }
+
+    // locked modules
+    const fixedEntries = [];
+    designs.forEach((d, i) => {
+      if (!d.fixed) return;
+      const p = places[i].findIndex(q => q.rot === d.fixed.rot && q.flip === d.fixed.flip && q.x === d.fixed.x && q.y === d.fixed.y);
+      if (p >= 0 && places[i][p].idx.every(c => !fixedOwner[c])) { fixedEntries.push([i, p]); places[i][p].idx.forEach(c => { fixedOwner[c] = 1; }); }
+    });
+    const movable = [...Array(D).keys()].filter(i => !designs[i].fixed && places[i].length && designs[i].count > 0);
+    const isFixed = e => designs[ed[e]].fixed;
+
+    const iters = opts.iters || 20000, restarts = opts.restarts || 10;
+    // best distinct layouts (distinct = different stat totals), best first
+    const TOPN = opts.topN || 5, top = [];
+    function consider(sc) {
+      if (top.length >= TOPN && sc <= top[top.length - 1].s + 1e-9) return;
+      const key = totals.join(",");
+      const i = top.findIndex(t => t.key === key);
+      if (i >= 0) { if (top[i].s >= sc - 1e-9) return; top.splice(i, 1); }
+      top.push({ s: sc, key, ed: ed.slice(), ep: ep.slice(), totals: totals.slice() });
+      top.sort((a, b) => b.s - a.s);
+      if (top.length > TOPN) top.pop();
+    }
+    const reset = () => { ed = []; ep = []; used.fill(0); owner.fill(-1); fixedEntries.forEach(([d, p]) => addEntry(d, p)); };
+    for (let r = 0; r < restarts; r++) {
+      reset();
+      // optional starting layout (e.g. the previous goal pass) for the first restart
+      if (r === 0 && opts.init) for (const q of opts.init) {
+        const pi = places[q.design] ? places[q.design].findIndex(p => p.rot === q.rot && p.flip === q.flip && p.x === q.x && p.y === q.y) : -1;
+        if (pi >= 0 && !designs[q.design].fixed && used[q.design] < designs[q.design].count && places[q.design][pi].idx.every(c => owner[c] < 0)) addEntry(q.design, pi);
+      }
+      let cur = score();
+      consider(cur);
+      if (!movable.length) break;
+      const T0 = 30, T1 = 0.02;
+      for (let it = 0; it < iters; it++) {
+        const T = T0 * Math.pow(T1 / T0, it / iters);
+        const removed = []; let added = null;
+        const nMov = ed.length - fixedEntries.length;
+        if (nMov > 0 && rnd() < 0.2) {
+          let e; do { e = (rnd() * ed.length) | 0; } while (isFixed(e));
+          removed.push(removeEntry(e));
+        } else {
+          const d = movable[(rnd() * movable.length) | 0];
+          const p = (rnd() * places[d].length) | 0;
+          const idx = places[d][p].idx;
+          if (idx.some(c => fixedOwner[c])) continue;
+          // relocate when this design has no copies left
+          if (used[d] >= designs[d].count) {
+            const mine = []; for (let e = 0; e < ed.length; e++) if (ed[e] === d) mine.push(e);
+            removed.push(removeEntry(mine[(rnd() * mine.length) | 0]));
+          }
+          for (const c of idx) { const j = owner[c]; if (j >= 0) removed.push(removeEntry(j)); }
+          addEntry(d, p); added = [d, p];
+        }
+        const nx = score();
+        if (nx >= cur || rnd() < Math.exp((nx - cur) / T)) {
+          cur = nx;
+          consider(cur);
+        } else {
+          if (added) removeEntry(owner[places[added[0]][added[1]].idx[0]]);
+          for (let k = removed.length - 1; k >= 0; k--) addEntry(removed[k][0], removed[k][1]);
+        }
+      }
+      if (progress) progress((r + 1) / restarts);
+    }
+
+    // Finishing pass: for every placed module, try each other design with the same shape in the exact
+    // same spot (e.g. Receiver+Learning -> Learning, or -> Side Mount+Learning on the left edge).
+    // Keeps a swap when the score does not drop, so idle effects are dropped via the effect tie-break.
+    const sameShape = places.map(pl => designs.map((_, j) => j).filter(j => places[j] === pl && !designs[j].fixed));
+    const polished = [];
+    for (const t of top) {
+      ed = []; ep = []; used.fill(0); owner.fill(-1);
+      t.ed.forEach((d, k) => addEntry(d, t.ep[k]));
+      let cur = score(), improved = true, guard = 0;
+      while (improved && guard++ < 200) {
+        improved = false;
+        const pairs = ed.map((d, k) => [d, ep[k]]);
+        for (const [d, p] of pairs) {
+          if (designs[d].fixed) continue;
+          for (const d2 of sameShape[d]) {
+            if (d2 === d || used[d2] >= designs[d2].count) continue;
+            removeEntry(owner[places[d][p].idx[0]]); addEntry(d2, p);
+            const s2 = score();
+            if (s2 > cur + 1e-9) { cur = s2; improved = true; break; }
+            removeEntry(owner[places[d2][p].idx[0]]); addEntry(d, p);
+          }
+          if (improved) break;
+        }
+      }
+      score();
+      const key = totals.join(',');
+      if (!polished.some(q => q.key === key)) polished.push({ s: cur, key, ed: ed.slice(), ep: ep.slice(), totals: totals.slice() });
+    }
+    polished.sort((a, b) => b.s - a.s);
+    top.length = 0; top.push(...polished);
+
+    const layouts = top.map(t => ({
+      score: t.s, totals: t.totals,
+      placements: t.ed.map((d, k) => { const p = places[d][t.ep[k]]; return { design: d, rot: p.rot, flip: p.flip, x: p.x, y: p.y }; }),
+    }));
+    return { ...layouts[0], top: layouts };
+  }
+
+  return { STATS, EFFECTS, VARIANTS, CATALOG, CAT, BAYS, MACHINES, baseStats, variantMult, spriteName, allowedSecond, shapeOf, orient, orientations, evaluate, machineOutput, readings, floorFor, usefulCap, mixOf, JOBS, allowedIn, optimize, unlimitedDesigns, POSITIONAL, idiv, mulTrunc };
+}
+
+const SPRITES = {"aug_chip":{"shape":["1"],"rect":[480,112,16,16]},"chem_module":{"shape":["11","11"],"rect":[400,112,32,32]},"core":{"shape":["11","11"],"rect":[464,64,32,32]},"farm_module1":{"shape":["1","1"],"rect":[16,416,16,32]},"farm_module2":{"shape":["1","1"],"rect":[48,416,16,32]},"farm_module3":{"shape":["1","1"],"rect":[80,416,16,32]},"farm_module5":{"shape":["1","1"],"rect":[144,416,16,32]},"farm_module6":{"shape":["1","1"],"rect":[176,416,16,32]},"farm_module_l1":{"shape":["1","1","1","1"],"rect":[16,336,16,64]},"farm_module_l2":{"shape":["1","1","1","1"],"rect":[48,336,16,64]},"farm_module_l3":{"shape":["1","1","1","1"],"rect":[80,336,16,64]},"farm_module_l4":{"shape":["1","1","1","1"],"rect":[112,336,16,64]},"farm_module_l5":{"shape":["1","1","1","1"],"rect":[144,336,16,64]},"farm_module_l6":{"shape":["1","1","1","1"],"rect":[176,336,16,64]},"farm_module_l7":{"shape":["1","1","1","1"],"rect":[208,336,16,64]},"farm_module_l8":{"shape":["1","1","1","1"],"rect":[240,336,16,64]},"hydro_upgrade_kit":{"shape":["11","11"],"rect":[464,448,32,32]},"long_module1":{"shape":["1","1","1","1"],"rect":[272,336,16,64]},"long_module2":{"shape":["1","1","1","1"],"rect":[304,336,16,64]},"long_module3":{"shape":["1","1","1","1"],"rect":[336,336,16,64]},"module_black_4":{"shape":["11","11"],"rect":[400,208,32,32]},"module_black_5":{"shape":["11","11"],"rect":[352,208,32,32]},"module_corrupt":{"shape":["11","11"],"rect":[352,16,32,32]},"module_extractor":{"shape":["11","11","11"],"rect":[464,384,32,48]},"module_extractor_adv":{"shape":["11","11","11"],"rect":[416,384,32,48]},"module_green":{"shape":["11","11"],"rect":[64,16,32,32]},"module_green_2":{"shape":["11","11"],"rect":[64,64,32,32]},"module_green_2_h":{"shape":["11","11","01"],"rect":[208,64,32,48]},"module_green_2_s":{"shape":["11","01","11"],"rect":[208,128,32,48]},"module_green_3":{"shape":["11","11"],"rect":[64,112,32,32]},"module_green_c":{"shape":["11","01"],"rect":[64,160,32,32]},"module_green_l":{"shape":["111","001"],"rect":[80,272,48,32]},"module_green_t":{"shape":["01","11","01"],"rect":[64,208,32,48]},"module_red":{"shape":["11","11"],"rect":[16,16,32,32]},"module_red_2":{"shape":["11","11"],"rect":[16,64,32,32]},"module_red_2_h":{"shape":["11","11","01"],"rect":[160,64,32,48]},"module_red_2_s":{"shape":["11","01","11"],"rect":[160,128,32,48]},"module_red_3":{"shape":["11","11"],"rect":[16,112,32,32]},"module_red_c":{"shape":["11","01"],"rect":[16,160,32,32]},"module_red_l":{"shape":["111","001"],"rect":[16,272,48,32]},"module_red_t":{"shape":["01","11","01"],"rect":[16,208,32,48]},"module_ruined":{"shape":["11","01"],"rect":[160,464,32,32]},"module_white":{"shape":["11","11"],"rect":[304,16,32,32]},"module_yellow":{"shape":["11","11"],"rect":[112,16,32,32]},"module_yellow_2":{"shape":["11","11"],"rect":[112,64,32,32]},"module_yellow_2_h":{"shape":["11","11","01"],"rect":[256,64,32,48]},"module_yellow_2_s":{"shape":["11","01","11"],"rect":[256,128,32,48]},"module_yellow_c":{"shape":["11","01"],"rect":[112,160,32,32]},"module_yellow_l":{"shape":["111","001"],"rect":[144,272,48,32]},"module_yellow_t":{"shape":["01","11","01"],"rect":[112,208,32,48]},"node_m":{"shape":["1","1"],"rect":[480,16,16,32]},"node_s":{"shape":["1"],"rect":[448,16,16,16]},"_atlas":{"w":512,"h":512}};
+const E = ENGINE();
+const $ = id => document.getElementById(id);
+const SN = ['Performance', 'Efficiency', 'Quality'];
+const sgn = v => (v > 0 ? '+' + v : '' + v);
+const cls = v => (v > 0 ? 'pos' : v < 0 ? 'neg' : '');
+
+// ---------- images ----------
+// No game art ships with this page. SPRITES holds only each module's cell shape and its rectangle in the
+// game's items_module.png. Players can load that PNG from their own copy of the game; it stays in their browser.
+const ATLAS_INFO = SPRITES._atlas; delete SPRITES._atlas;
+const ART_KEY = 'module-bay-optimizer-art';
+let ATLAS = null;
+function loadAtlas(src, persist) {
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => {
+      if (im.naturalWidth !== ATLAS_INFO.w || im.naturalHeight !== ATLAS_INFO.h) { res(`That image is ${im.naturalWidth}×${im.naturalHeight}. The module sprite sheet (items_module.png) is ${ATLAS_INFO.w}×${ATLAS_INFO.h}.`); return; }
+      ATLAS = im;
+      if (persist) { try { localStorage.setItem(ART_KEY, src); } catch (e) {} }
+      res('');
+    };
+    im.onerror = () => res('That file could not be read as an image.');
+    im.src = src;
+  });
+}
+const imgReady = (async () => { try { const d = localStorage.getItem(ART_KEY); if (d) await loadAtlas(d, false); } catch (e) {} })();
+// Simple pixel shapes when no sprites are loaded, coloured by the module family
+const FAMILY = [[/^module_red/, '#c8463d'], [/^module_green/, '#4a9a45'], [/^module_yellow/, '#d4a72c'], [/^module_black/, '#5a4785'], [/^module_white/, '#c3cad0'], [/^module_(ruined|corrupt)/, '#7d6f66'], [/^node/, '#3f7fbf'], [/^(farm|long)_module/, '#2f9a8f'], [/./, '#8a5fbf']];
+function drawShape(c, sprite) {
+  const sh = SPRITES[sprite].shape, col = FAMILY.find(([re]) => re.test(sprite))[1];
+  const on = (x, y) => y >= 0 && y < sh.length && x >= 0 && x < sh[0].length && sh[y][x] === '1';
+  const tier = /_[23]/.test(sprite) ? 2 : /_[45]$/.test(sprite) ? 3 : 1;
+  sh.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (ch !== '1') return;
+    const X = x * 16, Y = y * 16;
+    c.fillStyle = col; c.fillRect(X, Y, 16, 16);
+    c.fillStyle = 'rgba(0,0,0,.45)';
+    if (!on(x, y - 1)) c.fillRect(X, Y, 16, 2);
+    if (!on(x, y + 1)) c.fillRect(X, Y + 14, 16, 2);
+    if (!on(x - 1, y)) c.fillRect(X, Y, 2, 16);
+    if (!on(x + 1, y)) c.fillRect(X + 14, Y, 2, 16);
+    c.fillStyle = 'rgba(255,255,255,.28)'; c.fillRect(X + 5, Y + 5, 6, 6);
+  }));
+  // tier marks on the first cell: 1, 2 or 3 small pips
+  const fy = sh.findIndex(r => r.includes('1')), fx = sh[fy].indexOf('1');
+  c.fillStyle = 'rgba(0,0,0,.55)';
+  for (let t = 0; t < tier; t++) c.fillRect(fx * 16 + 3 + t * 4, fy * 16 + 3, 2, 2);
+}
+function drawPiece(canvas, sprite, rot, flip) {
+  const sp = SPRITES[sprite], sh = sp.shape;
+  const w = sh[0].length * 16, h = sh.length * 16;
+  const W = rot % 2 ? h : w, H = rot % 2 ? w : h;
+  canvas.width = W; canvas.height = H;
+  const c = canvas.getContext('2d'); c.imageSmoothingEnabled = false;
+  c.clearRect(0, 0, W, H); c.save(); c.translate(W / 2, H / 2); c.rotate(rot * Math.PI / 2); c.scale(flip ? -1 : 1, 1);
+  if (ATLAS) { const [rx, ry, rw, rh] = sp.rect; c.drawImage(ATLAS, rx, ry, rw, rh, -w / 2, -h / 2, w, h); }
+  else { c.translate(-w / 2, -h / 2); drawShape(c, sprite); }
+  c.restore();
+}
+
+// ---------- state ----------
+const KEY = 'module-bay-optimizer-v1';
+let uidN = 1;
+const newUid = () => 'm' + (uidN++) + Math.random().toString(36).slice(2, 6);
+function example() {
+  const mk = (cat, variant = '', effects = [], uses = 0) => ({ uid: newUid(), cat, variant, effects, uses });
+  return {
+    machine: 'hydroponic', bay: 1, example: true,
+    mods: [
+      mk('system_module_performance', '_l', ['TOP_MOUNT']), mk('system_module_performance', '_t', ['RECEIVER']),
+      mk('system_module_performance', ''), mk('system_module_efficiancy', '_c', ['PREMIUM']),
+      mk('system_module_efficiancy', '_t'), mk('system_module_quality', '', ['SIDE_MOUNT']),
+      mk('system_module_quality', '_l'), mk('system_module_overclock', '_s', ['NEG_FEEDBACK']),
+      mk('system_module_eco', '_h'), mk('system_module_fineness', '', ['RECEIVER']),
+      mk('node_medium', '', ['SUPPORT']), mk('node_medium', '', ['SUPPORT']),
+    ],
+    place: {}, preset: 'speedE', w: [1, 0, 0], m: [null, 0, null],
+  };
+}
+// Unlimited mode defaults: the regular universal modules, and the effects that stay stable over time
+const DEF_UCATS = ['system_module_performance', 'system_module_efficiancy', 'system_module_quality', 'system_module_overclock', 'system_module_eco', 'system_module_fineness', 'system_module_streamlining', 'node_medium'];
+const DEF_UEFFS = ['PREMIUM', 'INFERIOR', 'RECEIVER', 'TOP_MOUNT', 'SIDE_MOUNT', 'NEG_FEEDBACK', 'SUPPORT'];
+// S.mods / S.place always hold the active workspace; S.ws holds both ("mine" and "unlimited")
+function migrate(s) {
+  s.mode = s.mode === 'unlimited' ? 'unlimited' : 'mine';
+  if (!s.ws) s.ws = { mine: { mods: s.mods || [], place: s.place || {} }, unlimited: { mods: [], place: {} } };
+  if (!s.ws.unlimited) s.ws.unlimited = { mods: [], place: {} };
+  if (!s.ws.mine) s.ws.mine = { mods: [], place: {} };
+  s.mods = s.ws[s.mode].mods; s.place = s.ws[s.mode].place;
+  s.ucats = Array.isArray(s.ucats) ? s.ucats : DEF_UCATS.slice();
+  s.ueffs = Array.isArray(s.ueffs) ? s.ueffs : DEF_UEFFS.slice();
+  s.qmode = s.qmode === 'steps' ? 'steps' : 'raw';
+  s.umax = [0, 1, 2].includes(s.umax) ? s.umax : 2;
+  s.c = Array.isArray(s.c) ? s.c : [null, null, null];
+  s.tops = s.tops && typeof s.tops === 'object' ? s.tops : { mine: [], unlimited: [] };
+  return s;
+}
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
+if (!S || !Array.isArray(S.mods)) S = example();
+S = migrate(S);
+let sel = null, undoPlace = null;
+function save() { S.ws[S.mode] = { mods: S.mods, place: S.place }; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+function setMode(mode) {
+  if (mode === S.mode) return;
+  S.ws[S.mode] = { mods: S.mods, place: S.place };
+  S.mode = mode; S.mods = S.ws[mode].mods; S.place = S.ws[mode].place;
+  sel = null; undoPlace = null; endEdit(); render();
+}
+
+const machine = () => E.MACHINES.find(m => m.id === S.machine) || E.MACHINES[0];
+const mask = () => E.BAYS[machine().noExpansion ? 0 : S.bay].mask;
+const cat = mod => E.CAT[mod.cat];
+const spriteOf = mod => E.spriteName(cat(mod), mod.variant);
+const shapeOf = mod => E.shapeOf(SPRITES[spriteOf(mod)].shape);
+const baseOf = mod => E.baseStats(mod).base;
+const allowed = mod => E.allowedIn(machine(), cat(mod));
+const fxOf = mod => (mod.effects || []).filter(Boolean);
+
+function placedCells(mod) {
+  const p = S.place[mod.uid]; if (!p) return null;
+  const o = E.orient(shapeOf(mod), p.rot, p.flip);
+  return o.cells.map(([x, y]) => [x + p.x, y + p.y]);
+}
+function fits(mod, p, ignoreUid) {
+  const o = E.orient(shapeOf(mod), p.rot, p.flip), m = mask();
+  const taken = new Set();
+  S.mods.forEach(o2 => { if (o2.uid === ignoreUid || o2.uid === mod.uid) return; const c = placedCells(o2); if (c) c.forEach(([x, y]) => taken.add(y * 7 + x)); });
+  return o.cells.every(([cx, cy]) => { const x = cx + p.x, y = cy + p.y; return x >= 0 && y >= 0 && x < 7 && y < 5 && m[y * 7 + x] === '0' && !taken.has(y * 7 + x); });
+}
+function sanitize() {
+  // drop placements that no longer fit (bay or machine changed)
+  const ids = new Set(S.mods.map(m => m.uid));
+  Object.keys(S.place).forEach(k => { if (!ids.has(k)) delete S.place[k]; });
+  for (const mod of S.mods) { const p = S.place[mod.uid]; if (p && (!allowed(mod) || !fits(mod, p))) delete S.place[mod.uid]; }
+  for (const mod of S.mods) if (mod.locked && !S.place[mod.uid]) mod.locked = false;
+}
+const hasBlast = () => S.mods.some(m => m.cat === 'furnace_module_blast' && S.place[m.uid]);
+function compute() {
+  const placed = S.mods.filter(m => S.place[m.uid]);
+  const items = placed.map(m => ({ base: baseOf(m), node: !!cat(m).node, effects: fxOf(m), cells: placedCells(m) }));
+  const ev = E.evaluate(items, 7, 5);
+  const byUid = {}; placed.forEach((m, i) => { byUid[m.uid] = { ...ev.items[i], neighbors: ev.items[i].neighbors.map(j => placed[j].uid) }; });
+  return { totals: ev.totals, byUid, out: E.machineOutput(machine(), ev.totals, { blast: hasBlast() }), base: E.machineOutput(machine(), [0, 0, 0]) };
+}
+
+// ---------- header controls ----------
+$('machine').innerHTML = E.MACHINES.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+$('bay').innerHTML = E.BAYS.map((b, i) => `<option value="${i}">${b.name}</option>`).join('');
+$('machine').onchange = e => { S.machine = e.target.value; render(); };
+$('bay').onchange = e => { S.bay = +e.target.value; render(); };
+
+// ---------- board ----------
+const board = $('board');
+function cs() { return board.querySelector('.cell').getBoundingClientRect().width; }
+function renderBoard(R) {
+  const m = mask();
+  board.innerHTML = [...m].map(c => `<div class="cell${c === '1' ? ' blocked' : ''}"></div>`).join('');
+  const nb = sel && R.byUid[sel] ? new Set(R.byUid[sel].neighbors) : new Set();
+  for (const mod of S.mods) {
+    const p = S.place[mod.uid]; if (!p) continue;
+    const o = E.orient(shapeOf(mod), p.rot, p.flip);
+    const el = document.createElement('div');
+    el.className = 'piece' + (mod.uid === sel ? ' sel' : '') + (nb.has(mod.uid) ? ' nb' : '');
+    el.style.cssText = `left:calc(var(--cs)*${p.x});top:calc(var(--cs)*${p.y});width:calc(var(--cs)*${o.w});height:calc(var(--cs)*${o.h})`;
+    const c = document.createElement('canvas'); drawPiece(c, spriteOf(mod), p.rot, p.flip); el.appendChild(c);
+    const t = R.byUid[mod.uid].temp, k = t.reduce((a, v, i) => (Math.abs(v) > Math.abs(t[a]) ? i : a), 0);
+    if (t[k]) { const tag = document.createElement('span'); tag.className = 'tag ' + 'PEQ'[k]; tag.textContent = sgn(t[k]); el.appendChild(tag); }
+    if (mod.locked) { const lk = document.createElement('span'); lk.className = 'lock'; lk.textContent = 'LOCK'; el.appendChild(lk); }
+    el.title = `${cat(mod).name}: P ${sgn(t[0])}  E ${sgn(t[1])}  Q ${sgn(t[2])}`;
+    el.addEventListener('pointerdown', ev => startDrag(ev, mod, el, true));
+    board.appendChild(el);
+  }
+}
+
+// ---------- drag and drop ----------
+let drag = null;
+function startDrag(ev, mod, el, fromBoard) {
+  if (ev.button !== 0) return;
+  ev.preventDefault();
+  if (!allowed(mod)) { select(mod.uid); return; }
+  const p = S.place[mod.uid];
+  const rot = p ? p.rot : (mod.rot || 0), flip = p ? p.flip : (mod.flip || 0);
+  let gx = 0, gy = 0;
+  const size = cs();
+  if (fromBoard) { const r = el.getBoundingClientRect(); gx = Math.floor((ev.clientX - r.left) / size); gy = Math.floor((ev.clientY - r.top) / size); }
+  drag = { mod, rot, flip, gx, gy, sx: ev.clientX, sy: ev.clientY, moved: false, fromBoard, size, target: null };
+  window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onCancel);
+}
+function ghostUpdate(x, y) {
+  let g = document.querySelector('.ghost');
+  const o = E.orient(shapeOf(drag.mod), drag.rot, drag.flip);
+  if (!g) { g = document.createElement('div'); g.className = 'ghost'; g.appendChild(document.createElement('canvas')); document.body.appendChild(g); }
+  if (g.dataset.k !== drag.rot + '' + drag.flip) { drawPiece(g.firstChild, spriteOf(drag.mod), drag.rot, drag.flip); g.dataset.k = drag.rot + '' + drag.flip; }
+  // keep the grabbed cell under the pointer
+  g.style.width = o.w * drag.size + 'px'; g.style.height = o.h * drag.size + 'px';
+  g.style.left = x - (Math.min(drag.gx, o.w - 1) + .5) * drag.size + 'px'; g.style.top = y - (Math.min(drag.gy, o.h - 1) + .5) * drag.size + 'px';
+  const br = board.getBoundingClientRect();
+  const inside = x >= br.left - drag.size / 2 && x <= br.right + drag.size / 2 && y >= br.top - drag.size / 2 && y <= br.bottom + drag.size / 2;
+  let pv = board.querySelector('.preview'); if (pv) pv.remove();
+  drag.target = null; drag.inside = inside;
+  if (!inside) return;
+  const cx = Math.floor((x - br.left - 2) / drag.size) - Math.min(drag.gx, o.w - 1);
+  const cy = Math.floor((y - br.top - 2) / drag.size) - Math.min(drag.gy, o.h - 1);
+  const p = { x: cx, y: cy, rot: drag.rot, flip: drag.flip };
+  const ok = fits(drag.mod, p);
+  drag.target = ok ? p : null;
+  pv = document.createElement('div'); pv.className = 'preview' + (ok ? '' : ' bad');
+  pv.innerHTML = o.cells.map(([a, b]) => `<div style="left:calc(var(--cs)*${a + cx});top:calc(var(--cs)*${b + cy})"></div>`).join('');
+  board.appendChild(pv);
+}
+function onMove(ev) {
+  if (!drag) return;
+  if (!drag.moved && Math.hypot(ev.clientX - drag.sx, ev.clientY - drag.sy) < 5) return;
+  drag.moved = true; drag.lx = ev.clientX; drag.ly = ev.clientY;
+  ghostUpdate(ev.clientX, ev.clientY);
+}
+function endDrag() {
+  window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onCancel);
+  document.querySelector('.ghost')?.remove(); board.querySelector('.preview')?.remove();
+}
+function onCancel() { endDrag(); drag = null; }
+function onUp() {
+  const d = drag; endDrag(); drag = null;
+  if (!d) return;
+  if (!d.moved) { select(d.mod.uid); return; }
+  if (d.target) { S.place[d.mod.uid] = d.target; }
+  else if (!d.inside && d.fromBoard) delete S.place[d.mod.uid];
+  d.mod.rot = d.rot; d.mod.flip = d.flip;
+  sel = d.mod.uid; undoPlace = null; render();
+}
+function rotateSel(dir) {
+  if (drag) { drag.rot = (drag.rot + 1) % 4; ghostUpdate(drag.lx ?? drag.sx, drag.ly ?? drag.sy); return; }
+  const mod = S.mods.find(m => m.uid === sel); if (!mod) return;
+  transformPlaced(mod, p => ({ ...p, rot: (p.rot + 1) % 4 }));
+}
+function flipSel() {
+  if (drag) { drag.flip ^= 1; ghostUpdate(drag.lx ?? drag.sx, drag.ly ?? drag.sy); return; }
+  const mod = S.mods.find(m => m.uid === sel); if (!mod) return;
+  transformPlaced(mod, p => ({ ...p, flip: p.flip ^ 1 }));
+}
+function transformPlaced(mod, fn) {
+  const p = S.place[mod.uid];
+  if (!p) { const q = fn({ x: 0, y: 0, rot: mod.rot || 0, flip: mod.flip || 0 }); mod.rot = q.rot; mod.flip = q.flip; render(); return; }
+  const q = fn(p);
+  // try the same corner, then nearby offsets so rotating near an edge still works
+  for (const [dx, dy] of [[0, 0], [-1, 0], [0, -1], [-1, -1], [1, 0], [0, 1], [-2, 0], [0, -2], [-2, -1], [-1, -2]]) {
+    const t = { ...q, x: q.x + dx, y: q.y + dy };
+    if (fits(mod, t)) { S.place[mod.uid] = t; mod.rot = t.rot; mod.flip = t.flip; render(); return; }
+  }
+  flash('No room to turn it there.');
+}
+function autoPlace(mod) {
+  for (const o of E.orientations(shapeOf(mod))) for (let y = 0; y < 5; y++) for (let x = 0; x < 7; x++) {
+    const p = { x, y, rot: o.rot, flip: o.flip };
+    if (fits(mod, p)) { S.place[mod.uid] = p; render(); return; }
+  }
+  flash('No free spot fits this module.');
+}
+document.addEventListener('keydown', ev => {
+  if (ev.target.closest?.('input,select,textarea')) return;
+  const k = ev.key.toLowerCase();
+  if (k === 'r') { rotateSel(); ev.preventDefault(); }
+  else if (k === 'f') { flipSel(); ev.preventDefault(); }
+  else if (k === 'l' && sel) { const mod = S.mods.find(m => m.uid === sel); if (mod && S.place[mod.uid]) { mod.locked = !mod.locked; render(); } ev.preventDefault(); }
+  else if ((k === 'delete' || k === 'backspace') && sel && S.place[sel]) { delete S.place[sel]; render(); ev.preventDefault(); }
+  else if (k === 'escape') { if (drag) onCancel(); else { sel = null; render(); } }
+});
+board.addEventListener('pointerdown', ev => { if (ev.target === board || ev.target.classList.contains('cell')) { sel = null; render(); } });
+function select(uid) { sel = uid; render(); }
+let flashT;
+function flash(msg) { const r = $('result'); r.innerHTML = `<span class="neg">${msg}</span>`; clearTimeout(flashT); }
+
+// ---------- readouts ----------
+function renderReadouts(R) {
+  const m = machine();
+  const maxAbs = Math.max(100, ...R.totals.map(Math.abs));
+  const bars = R.totals.map((v, k) => {
+    const pct = Math.abs(v) / maxAbs * 50;
+    const left = v >= 0 ? 50 : 50 - pct;
+    return `<div class="stat"><span class="lab ${'PEQ'[k]}">${SN[k]}</span><div class="bar"><i style="left:${left}%;width:${pct}%;background:var(--${['perf', 'eff', 'qual'][k]})"></i></div><span class="v ${cls(v)}">${sgn(v)}%</span></div>`;
+  }).join('');
+  const o = R.out, b = R.base, outs = [];
+  if (o.speed != null) outs.push(`<div class="out"><div class="k">Processing speed</div><div class="val ${cls(o.speed - b.speed)}">${o.speed}</div><div class="was">base ${b.speed}${m.pr ? ` · ratio 1/${m.pr}` : ''}</div></div>`);
+  outs.push(`<div class="out"><div class="k">Power draw</div><div class="val ${cls(b.power - o.power)}">${o.power}</div><div class="was">base ${b.power}${m.er ? ` · ratio 1/${m.er}` : ''}</div></div>`);
+  if (o.quality != null) outs.push(`<div class="out"><div class="k">Quality bonus</div><div class="val ${cls(o.quality)}">${sgn(o.quality)}</div><div class="was">ratio 1/${m.qr}</div></div>`);
+  if (o.purity != null) {
+    // IngotPurityHelper: Low (6) + ore share (all ore 2, all scrap 0) + this bonus, clamped to Very Low..Perfect
+    const PN = { 5: 'Very Low', 6: 'Low', 7: 'Fair', 8: 'High', 9: 'Very High', 10: 'Perfect' };
+    const pn = share => PN[Math.max(5, Math.min(10, 6 + share + o.purity))];
+    outs.push(`<div class="out"><div class="k">Ingot purity</div><div class="val ${cls(o.purity)}">${sgn(o.purity)} step${Math.abs(o.purity) === 1 ? '' : 's'}</div><div class="was">quality ÷ 100${hasBlast() ? ', −1 for Blast' : ''}</div><div class="was">all ore: <b>${pn(2)}</b> · all scrap: <b>${pn(0)}</b></div></div>`);
+  }
+  for (const e of o.extra || []) outs.push(`<div class="out"><div class="k">${e.k}</div><div class="val" style="font-size:15px">${e.v}</div><div class="was">empty bay: ${e.was}</div>${e.note ? `<div class="was">${e.note}</div>` : ''}</div>`);
+  if (o.bargain != null) outs.push(`<div class="out"><div class="k">Bargain bonus</div><div class="val">${o.bargain}%</div><div class="was">base 10%</div></div>`);
+  const notes = [];
+  if (m.speed == null && R.totals[0] && !(o.extra || []).length && !m.purity) notes.push(`This machine reads performance (${sgn(R.totals[0])}%${m.pr ? ' at ratio 1/' + m.pr : ''}) in its own way.`);
+  if (m.noQ) notes.push('This machine does not use quality.');
+  if (m.uses) notes.push(m.uses);
+  $('readouts').innerHTML = bars + `<div class="outputs">${outs.join('')}</div>` + (notes.length ? `<div class="note">${notes.join(' ')}</div>` : '');
+}
+
+// ---------- inspector ----------
+function statCells(v) { return v.map((x, k) => `<td class="${cls(x)}">${x ? sgn(x) : '·'}</td>`).join(''); }
+function renderInspector(R) {
+  const el = $('inspector');
+  const mod = S.mods.find(m => m.uid === sel);
+  if (!mod) {
+    const placed = S.mods.filter(m => S.place[m.uid]);
+    el.innerHTML = `<h2>Bay breakdown <small>${placed.length} module${placed.length === 1 ? '' : 's'} installed · click one for details</small></h2>` +
+      (placed.length ? `<div style="overflow-x:auto"><table class="bd"><tr><th>Module</th><th>Perf</th><th>Eff</th><th>Qual</th></tr>${placed.map(m => `<tr><td>${cat(m).name}${fxOf(m).length ? ' <span class="note">· ' + fxOf(m).map(f => E.EFFECTS[f].name).join(', ') + '</span>' : ''}</td>${statCells(R.byUid[m.uid].temp)}</tr>`).join('')}<tr class="tot"><td>Total</td>${statCells(R.totals)}</tr></table></div>` : '<p class="note">The bay is empty. Drag a module in, or let the optimizer fill it.</p>');
+    return;
+  }
+  const c = cat(mod), bs = E.baseStats(mod), r = R.byUid[mod.uid], fx = fxOf(mod);
+  const v = c.variants ? E.VARIANTS[c.variants].find(x => x.id === (mod.variant || '')) : null;
+  el.innerHTML = `<h2>${c.name} <small>${S.place[mod.uid] ? 'in the bay' : 'not installed'}</small></h2>
+    <div class="insp"><div class="thumb"><canvas id="ithumb"></canvas></div><div>
+      <div class="chips">${v ? `<span class="chip">${v.name} shape</span>` : ''}${fx.map(f => `<span class="chip fx">${E.EFFECTS[f].name}</span>`).join('')}${mod.required ? '<span class="chip req">Must use</span>' : ''}${mod.locked ? '<span class="chip lock">Locked in place</span>' : ''}${!allowed(mod) ? `<span class="chip warn">Not accepted by ${machine().name}</span>` : ''}${c.extra ? `<span class="chip">${c.extra}</span>` : ''}</div>
+      ${fx.map(f => `<p class="fxdesc"><b>${E.EFFECTS[f].name}.</b> ${E.EFFECTS[f].desc}</p>`).join('')}
+      <div style="overflow-x:auto"><table class="bd"><tr><th></th><th>Perf</th><th>Eff</th><th>Qual</th></tr>
+        <tr><td>Catalogue stats</td>${statCells(c.base)}</tr>
+        <tr><td>Base on this module</td>${statCells(bs.base)}</tr>
+        ${r ? r.lines.map(l => `<tr><td>${l.label}</td>${statCells(l.d)}</tr>`).join('') + `<tr class="tot"><td>Gives the bay</td>${statCells(r.temp)}</tr>` : ''}
+      </table></div>
+      ${bs.learnMax ? `<p class="fxdesc">Fully trained at ${bs.learnMax.map((x, k) => x != null ? SN[k] + ' ' + x : '').filter(Boolean).join(', ')} finished jobs.</p>` : ''}
+    </div></div>
+    <div class="btns">
+      ${S.place[mod.uid] ? '<button data-a="remove">Take out</button>' : `<button data-a="place" ${allowed(mod) ? '' : 'disabled'}>Put in bay</button>`}
+      <button data-a="rot">Rotate (R)</button><button data-a="flip">Flip (F)</button>
+      <button data-a="lock" ${S.place[mod.uid] ? '' : 'disabled title="Put it in the bay first"'}>${mod.locked ? 'Unlock (L)' : 'Lock in place (L)'}</button>
+      <button data-a="req">${mod.required ? 'Make optional' : 'Must use'}</button>
+      <button data-a="edit">Edit</button><button data-a="dup">Duplicate</button><button data-a="del">Delete</button>
+    </div>`;
+  drawPiece($('ithumb'), spriteOf(mod), S.place[mod.uid]?.rot ?? mod.rot ?? 0, S.place[mod.uid]?.flip ?? mod.flip ?? 0);
+  $('ithumb').style.width = '64px'; $('ithumb').style.height = 'auto';
+  el.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => {
+    const a = b.dataset.a;
+    if (a === 'remove') { delete S.place[mod.uid]; render(); }
+    else if (a === 'place') autoPlace(mod);
+    else if (a === 'rot') rotateSel();
+    else if (a === 'flip') flipSel();
+    else if (a === 'req') { mod.required = !mod.required; render(); }
+    else if (a === 'lock') { mod.locked = !mod.locked; render(); }
+    else if (a === 'edit') startEdit(mod);
+    else if (a === 'dup') { const n = { ...mod, uid: newUid(), effects: [...(mod.effects || [])] }; S.mods.splice(S.mods.indexOf(mod) + 1, 0, n); sel = n.uid; render(); }
+    else if (a === 'del') { S.mods = S.mods.filter(m => m !== mod); delete S.place[mod.uid]; sel = null; render(); }
+  });
+}
+
+// ---------- locker ----------
+function renderLocker() {
+  const unl = S.mode === 'unlimited';
+  $('lockertitle').textContent = unl ? 'Unlimited plan' : 'My modules';
+  $('count').textContent = `${S.mods.length} ${unl ? 'in plan' : 'owned'} · ${S.mods.filter(m => S.place[m.uid]).length} in bay`;
+  if (unl) {
+    const counts = {};
+    S.mods.filter(m => S.place[m.uid]).forEach(m => {
+      const v = cat(m).variants ? E.VARIANTS[cat(m).variants].find(x => x.id === (m.variant || '')) : null;
+      const k = `${cat(m).name}${v && v.id ? ', ' + v.name.replace(/ \(.*/, '') + ' shape' : ''}${fxOf(m).length ? ' with ' + fxOf(m).map(f => E.EFFECTS[f].name).join(' + ') : ''}`;
+      counts[k] = (counts[k] || 0) + 1;
+    });
+    $('shopping').innerHTML = `<div class="shop"><b>Shopping list</b> <span class="note">· modules to look for to build this bay</span>${Object.keys(counts).length ? `<ul>${Object.entries(counts).map(([k, n]) => `<li>${n} × ${k}</li>`).join('')}</ul>` : '<p class="note" style="margin:4px 0 0">Empty. Press <b>Find best layout</b> to build a plan. Add modules below and mark them Must use or Lock to build around them; everything else is replaced on each run.</p>'}</div>`;
+  } else $('shopping').innerHTML = '';
+  $('banner').innerHTML = S.example && !unl ? `<div class="banner"><span>These are example modules. Delete them and add the ones you own.</span><button id="clearex">Clear examples</button></div>` : '';
+  if (S.example && !unl) $('clearex').onclick = () => { S.mods = []; S.place = {}; S.example = false; sel = null; render(); };
+  const L = $('locker'); L.innerHTML = '';
+  if (!S.mods.length) L.innerHTML = '<p class="note">No modules yet. Add one with the form below.</p>';
+  for (const mod of S.mods) {
+    const c = cat(mod), b = baseOf(mod), fx = fxOf(mod);
+    const v = c.variants ? E.VARIANTS[c.variants].find(x => x.id === (mod.variant || '')) : null;
+    const row = document.createElement('div');
+    row.className = 'mod' + (mod.uid === sel ? ' sel' : '') + (allowed(mod) ? '' : ' off');
+    row.innerHTML = `<div class="thumb"><canvas></canvas></div><div style="min-width:0"><div class="nm">${c.name}${mod.required ? ' <span class="chip req">Must use</span>' : ''}${mod.locked ? ' <span class="chip lock">Locked</span>' : ''}</div><div class="meta">${[v && v.id ? v.name.replace(/ \(.*/, '') + ' shape' : '', ...fx.map(f => E.EFFECTS[f].name)].filter(Boolean).join(' · ') || 'No effects'}${allowed(mod) ? '' : ' · not for this machine'}</div></div>
+      <div class="st">${b.map((x, k) => x ? `<span class="${'PEQ'[k]}">${'PEQ'[k]}${sgn(x)}</span>` : '').filter(Boolean).join(' ') || '<span class="note">no stats</span>'}${S.place[mod.uid] ? '<div class="inbay">In bay</div>' : ''}</div>`;
+    const cv = row.querySelector('canvas'); drawPiece(cv, spriteOf(mod), mod.rot || 0, mod.flip || 0);
+    const sh = SPRITES[spriteOf(mod)].shape; const sc = Math.min(44 / (sh[0].length * 16), 44 / (sh.length * 16), 1.4);
+    cv.style.width = sh[0].length * 16 * sc * ((mod.rot || 0) % 2 ? sh.length / sh[0].length : 1) + 'px';
+    row.querySelector('.thumb').addEventListener('pointerdown', ev => startDrag(ev, mod, null, false));
+    row.addEventListener('click', ev => { if (!ev.target.closest('.thumb')) select(mod.uid); });
+    L.appendChild(row);
+  }
+}
+
+// ---------- add / edit form ----------
+let editing = null;
+const groups = {};
+E.CATALOG.forEach(c => { const g = c.node ? 'Nodes' : c.type === 'UNIVERSAL' ? 'Universal modules' : 'Machine-specific: ' + c.type.replace('_', ' ').toLowerCase(); (groups[g] = groups[g] || []).push(c); });
+$('fcat').innerHTML = Object.entries(groups).map(([g, list]) => `<optgroup label="${g}">${list.map(c => `<option value="${c.id}">${c.name} (${c.base.map((x, k) => x ? 'PEQ'[k] + sgn(x) : '').filter(Boolean).join(' ') || 'no stats'})</option>`).join('')}</optgroup>`).join('');
+function formMod() { return { cat: $('fcat').value, variant: $('fvar').value || '', effects: [$('fe1').value, $('fe2').value].filter(Boolean), uses: +$('fuses').value || 0 }; }
+function refreshForm(keep) {
+  const c = E.CAT[$('fcat').value];
+  const vs = c.variants ? E.VARIANTS[c.variants] : [{ id: '', name: 'Fixed' }];
+  const pv = keep ? $('fvar').value : '';
+  $('fvar').innerHTML = vs.map(v => `<option value="${v.id}">${v.name}${v.chance ? ' · ' + v.chance + ' drop' : ''}</option>`).join('');
+  $('fvar').value = vs.some(v => v.id === pv) ? pv : '';
+  $('fvar').disabled = !c.variants;
+  const node = !!c.node;
+  const e1opts = c.noEffects ? [''] : node ? ['', 'SUPPORT'] : ['', ...Object.keys(E.EFFECTS).filter(k => E.EFFECTS[k].kind === 'module')];
+  const e1 = e1opts.includes($('fe1').value) ? $('fe1').value : '';
+  $('fe1').innerHTML = e1opts.map(k => `<option value="${k}">${k ? E.EFFECTS[k].name : 'None'}</option>`).join(''); $('fe1').value = e1;
+  const e2opts = e1 ? ['', ...E.allowedSecond(e1, node)] : [''];
+  const e2 = e2opts.includes($('fe2').value) ? $('fe2').value : '';
+  $('fe2').innerHTML = e2opts.map(k => `<option value="${k}">${k ? E.EFFECTS[k].name : 'None'}</option>`).join(''); $('fe2').value = e2; $('fe2').disabled = !e1 || node;
+  const m = formMod();
+  const usesOn = m.effects.includes('LEARNING') || m.effects.includes('DEGRADING');
+  $('fuses').disabled = !usesOn;
+  const bs = E.baseStats(m);
+  $('fprev').innerHTML = 'Base stats: ' + bs.base.map((x, k) => `<span class="${'PEQ'[k]}">${SN[k]} ${sgn(x)}%</span>`).join(' · ') +
+    (bs.learnMax ? `<br><span class="note">Learning Algorithm: positive stats grow by 1 per finished job up to ${bs.learnMax.filter(x => x != null).join('/')}.</span>` : '') +
+    (m.effects.includes('DEGRADING') ? '<br><span class="note">Degrading: each finished job removes 1 from each positive stat.</span>' : '') +
+    (c.extra ? `<br><span class="note">${c.extra}</span>` : '');
+}
+['fcat', 'fvar', 'fe1', 'fe2', 'fuses'].forEach(id => $(id).addEventListener('change', () => refreshForm(true)));
+$('fuses').addEventListener('input', () => refreshForm(true));
+function startEdit(mod) {
+  editing = mod.uid;
+  $('fcat').value = mod.cat; refreshForm(false);
+  $('fvar').value = mod.variant || ''; $('fe1').value = (mod.effects || [])[0] || ''; refreshForm(true);
+  $('fe2').value = (mod.effects || [])[1] || ''; $('fuses').value = mod.uses || 0; refreshForm(true);
+  $('fsubmit').textContent = 'Save changes'; $('fcancel').hidden = false; $('fqty').parentElement.hidden = true;
+  $('addform').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+function endEdit() { editing = null; $('fsubmit').textContent = 'Add module'; $('fcancel').hidden = true; $('fqty').parentElement.hidden = false; }
+$('fcancel').onclick = () => { endEdit(); };
+$('addform').addEventListener('submit', ev => {
+  ev.preventDefault();
+  const m = formMod();
+  if (editing) {
+    const mod = S.mods.find(x => x.uid === editing);
+    if (mod) { const shapeChanged = mod.cat !== m.cat || (mod.variant || '') !== m.variant; Object.assign(mod, m); if (shapeChanged) delete S.place[mod.uid]; sel = mod.uid; }
+    endEdit();
+  } else {
+    const n = Math.max(1, Math.min(20, +$('fqty').value || 1));
+    for (let i = 0; i < n; i++) { const mod = { uid: newUid(), ...m, effects: [...m.effects] }; S.mods.push(mod); sel = mod.uid; }
+  }
+  if (S.example) S.example = false;
+  render();
+});
+
+// ---------- goal: one priority list of machine readings ----------
+// Each row: { r: reading id, mode: 'best' | 'target', target: reading value (internal, higher = better), job: job size }
+const DEFAULT_GOALS = {
+  hydroponic: [['cycles', 23], ['qbonus'], ['power']],
+  dna: [['qbonus'], ['cycles', 28], ['power']],
+  printer: [['cycles', 50], ['qbonus'], ['power']],
+  winerack: [['aging'], ['power']],
+  dealmaker: [['bargain'], ['power']],
+  projector: [['attract'], ['power']],
+  purifier: [['maxpur'], ['dirt'], ['power']],
+  desequencer: [['cycles', 150], ['power']],
+  furnace: [['purity_ore'], ['power']],
+  moisture: [['grade'], ['water'], ['power']],
+  alarm: [['stop'], ['power']],
+  evaporator: [['distil'], ['evap'], ['power']],
+};
+const ctxNow = () => ({ blast: S.mods.some(m => m.cat === 'furnace_module_blast' && (S.place[m.uid] || m.required || m.locked)) });
+const defaultGoals = m => (DEFAULT_GOALS[m.id] || [['power']]).map(([r, job]) => ({ r, mode: 'best', target: null, job: job || null }));
+function goalsFor(m) {
+  S.goals = S.goals && typeof S.goals === 'object' ? S.goals : {};
+  if (!Array.isArray(S.goals[m.id]) || !S.goals[m.id].length) S.goals[m.id] = defaultGoals(m);
+  return S.goals[m.id];
+}
+const readingOf = (m, g) => E.readings(m, ctxNow()).find(r => r.id === g.r) || E.readings(m, ctxNow())[0];
+const fmtTarget = (rd, v) => (rd.low ? -v : v);
+function renderGoals() {
+  const m = machine(), rds = E.readings(m, ctxNow()), rows = goalsFor(m);
+  const totals = compute().totals;
+  const jobs = E.JOBS[m.id] || [];
+  $('goals').innerHTML = rows.map((g, i) => {
+    const rd = rds.find(r => r.id === g.r) || rds[0];
+    const o = { job: g.job || 100 };
+    const now = rd.show(rd.value(totals, o));
+    let tgt = '';
+    if (g.mode === 'target') {
+      if (rd.levels) tgt = `<select data-i="${i}" data-f="target" aria-label="Target">${rd.levels.map(l => `<option value="${l.v}" ${l.v === g.target ? 'selected' : ''}>${l.label}</option>`).join('')}</select>`;
+      else tgt = `<input data-i="${i}" data-f="target" type="number" aria-label="Target" value="${g.target == null ? '' : fmtTarget(rd, g.target)}" style="width:80px">`;
+    }
+    let job = '';
+    if (rd.job) {
+      // named jobs from the game, sorted by size, plus a custom size
+      const sorted = jobs.slice().sort((a, b) => a[0] - b[0] || a[1].localeCompare(b[1]));
+      const custom = g.jobCustom || !jobs.some(j => j[0] === g.job);
+      job = `<select data-i="${i}" data-f="jobsel" aria-label="Job">${sorted.map(([v, l]) => `<option value="${v}" ${!custom && v === g.job ? 'selected' : ''}>${l} (${v})</option>`).join('')}<option value="custom" ${custom ? 'selected' : ''}>Other size…</option></select>` +
+        (custom ? `<label class="jobl">job size <input data-i="${i}" data-f="job" type="number" min="1" value="${g.job || 100}" style="width:70px"></label>` : '');
+    }
+    return `<div class="goalrow"><span class="rk">${i + 1}</span>
+      <div class="gmain">
+        <select data-i="${i}" data-f="r" aria-label="Reading">${rds.map(r => `<option value="${r.id}" ${r.id === rd.id ? 'selected' : ''}>${r.label}</option>`).join('')}</select>
+        <select data-i="${i}" data-f="mode" aria-label="Aim">${[['best', rd.low ? 'As low as possible' : 'As high as possible'], ['target', rd.low ? 'At most' : 'At least']].map(([v, l]) => `<option value="${v}" ${g.mode === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        ${tgt}${job}
+        <span class="note">now: <b>${now}</b></span>
+      </div>
+      <span class="gbtn">${i ? `<button data-i="${i}" data-a="up" title="Move up" aria-label="Move up">↑</button>` : ''}<button data-i="${i}" data-a="del" title="Remove" aria-label="Remove">✕</button></span></div>`;
+  }).join('') + `
+    <div class="btns"><button data-a="add" ${rows.length >= 4 ? 'disabled' : ''}>Add a priority</button><button data-a="reset">Suggested goal for ${m.name}</button></div>`;
+}
+$('goals').addEventListener('change', e => {
+  const el = e.target, i = +el.dataset.i, f = el.dataset.f; if (!f) return;
+  const m = machine(), g = goalsFor(m)[i];
+  if (f === 'r') { g.r = el.value; g.mode = 'best'; g.target = null; const rd = readingOf(m, g); g.job = rd.job ? (g.job || (E.JOBS[m.id] || [[100]])[0][0]) : null; }
+  else if (f === 'mode') {
+    g.mode = el.value;
+    const rd = readingOf(m, g);
+    if (g.mode === 'target' && g.target == null) g.target = rd.levels ? rd.levels[rd.levels.length - 1].v : rd.value(compute().totals, { job: g.job || 100 });
+  }
+  else if (f === 'target') { const rd = readingOf(m, g); g.target = el.value === '' ? null : (rd.levels ? +el.value : (rd.low ? -1 : 1) * +el.value); }
+  else if (f === 'jobsel') { if (el.value === 'custom') g.jobCustom = true; else { g.job = +el.value; g.jobCustom = false; } }
+  else if (f === 'job') g.job = Math.max(1, +el.value || 100);
+  save(); renderGoals();
+});
+$('goals').addEventListener('click', e => {
+  const a = e.target.dataset && e.target.dataset.a; if (!a) return;
+  const m = machine(), rows = goalsFor(m), i = +e.target.dataset.i;
+  if (a === 'del') { rows.splice(i, 1); if (!rows.length) S.goals[m.id] = defaultGoals(m); }
+  else if (a === 'up') rows.splice(i - 1, 0, rows.splice(i, 1)[0]);
+  else if (a === 'add') { const used = new Set(rows.map(g => g.r)); const rd = E.readings(m, ctxNow()).find(r => !used.has(r.id)); rows.push({ r: rd.id, mode: 'best', target: null, job: rd.job ? 100 : null }); }
+  else if (a === 'reset') S.goals[m.id] = defaultGoals(m);
+  save(); renderGoals();
+});
+function syncGoal() { renderGoals(); }
+
+// ---------- optimizer ----------
+let worker = null;
+try { worker = new Worker(URL.createObjectURL(new Blob([`const E=(${ENGINE.toString()})();onmessage=e=>{const r=E.optimize(e.data,p=>postMessage({progress:p}));postMessage({done:r});};`], { type: 'text/javascript' }))); } catch (e) { worker = null; }
+const EFFORT = { quick: [6, 8000], normal: [14, 20000], deep: [32, 50000] };
+const EFFORT_UNL = { quick: [8, 25000], normal: [16, 60000], deep: [40, 150000] };
+function designOf(m, count) {
+  const p = S.place[m.uid];
+  return { base: baseOf(m), node: !!cat(m).node, effects: fxOf(m), shape: shapeOf(m), count, min: m.required ? 1 : 0, fixed: m.locked && p ? { rot: p.rot, flip: p.flip, x: p.x, y: p.y } : null };
+}
+function runOptimizer(opts = {}) {
+  const unl = S.mode === 'unlimited';
+  const mach = machine();
+  // My modules: each owned module once. Unlimited: keep locked / must-use modules, then any number of each allowed design.
+  const pool = S.mods.filter(m => allowed(m) && (!unl || m.locked || m.required));
+  const gen = unl ? E.unlimitedDesigns(S.ucats.filter(id => E.CAT[id] && E.allowedIn(mach, E.CAT[id])), S.ueffs, S.umax) : [];
+  if (!pool.length && !gen.length) { $('result').innerHTML = `<span class="neg">${unl ? 'Tick at least one module type above.' : 'None of your modules fit this machine. Add some first.'}</span>`; return; }
+  const [restarts, iters] = (unl ? EFFORT_UNL : EFFORT)[$('effort').value];
+  const designs = [...pool.map(m => designOf(m, 1)), ...gen.map(g => designOf(g, Infinity))];
+  // the Blast module's purity penalty applies when the plan keeps one
+  const ctx = { blast: pool.some(m => m.cat === 'furnace_module_blast' && (m.required || m.locked || !unl)) };
+  const rds = E.readings(mach, ctx);
+  const goals = goalsFor(mach).map(g => ({ ...g, rd: rds.find(r => r.id === g.r) })).filter(g => g.rd);
+  const base = { mask: mask(), W: 7, H: 5, designs, topN: 5 };
+  const seed0 = (Math.random() * 1e9) | 0;
+  $('run').disabled = true; $('progbar').style.width = '0%';
+  $('result').innerHTML = `<span class="note">Searching${unl ? ` ${gen.length} module designs` : ''}, ${goals.length} priorit${goals.length === 1 ? 'y' : 'ies'}…</span>`;
+
+  // turn an optimizer layout into a saved snapshot of this workspace
+  const snapshot = l => {
+    const mods = unl ? S.mods.filter(m => m.locked || m.required).map(m => ({ ...m, effects: [...(m.effects || [])] })) : null;
+    const place = {};
+    l.placements.forEach(p => {
+      let uid;
+      if (p.design < pool.length) uid = pool[p.design].uid;
+      else { const g = gen[p.design - pool.length]; const mod = { uid: newUid(), cat: g.cat, variant: g.variant, effects: [...g.effects], uses: g.uses || 0 }; mods.push(mod); uid = mod.uid; }
+      place[uid] = { rot: p.rot, flip: p.flip, x: p.x, y: p.y };
+    });
+    return { mods, place, totals: l.totals, count: l.placements.length };
+  };
+  // Work down the priority list. Each pass maximises one reading (stopping where it can no longer improve,
+  // or at the target), then locks the level it reached as a floor for the following passes.
+  const floors = [];
+  const report = [];
+  let last = null;
+  const pass = i => {
+    if (i >= goals.length) return Promise.resolve();
+    const g = goals[i], rd = g.rd, o = { job: g.job || 100 };
+    const cap = g.mode === 'target' && g.target != null ? E.floorFor(rd, g.target, o) : E.usefulCap(rd, o);
+    const terms = [...floors.map(f => ({ w: f.w, scale: 0, cap: null, min: f.min })), { w: rd.w, scale: 1, cap, min: null }];
+    const job = { ...base, terms, restarts, iters, seed: seed0 + i, init: last ? last.top[0].placements : null };
+    return runJob(job, p => { $('progbar').style.width = ((i + p) / goals.length) * 100 + '%'; }).then(r => {
+      // keep layouts that still meet every earlier floor
+      const ok = l => floors.every(f => E.mixOf(f.w, l.totals) >= f.min - 1e-9);
+      const top = r.top.filter(ok);
+      if (top.length) last = { top }; else if (!last) last = { top: r.top };
+      const got = rd.value(last.top[0].totals, o);
+      const level = g.mode === 'target' && g.target != null ? Math.min(got, g.target) : got;
+      const fl = E.floorFor(rd, level, o);
+      floors.push({ w: rd.w, min: fl != null ? Math.min(fl, E.mixOf(rd.w, last.top[0].totals)) : E.mixOf(rd.w, last.top[0].totals) });
+      return pass(i + 1);
+    });
+  };
+  pass(0).then(() => {
+    $('run').disabled = false; $('progbar').style.width = '100%';
+    if (!opts.silent) undoPlace = JSON.parse(JSON.stringify({ mods: S.mods, place: S.place }));
+    const list = last.top;
+    S.tops[S.mode] = list.map(snapshot);
+    loadSnapshot(S.tops[S.mode][0], false);
+    const t = list[0].totals;
+    for (const g of goals) {
+      const o = { job: g.job || 100 }, v = g.rd.value(t, o);
+      const hit = g.mode !== 'target' || g.target == null || v >= g.target;
+      report.push(`<li>${g.rd.label}${g.rd.job ? ` (job ${o.job})` : ''}: <b>${g.rd.show(v)}</b>${g.mode === 'target' && g.target != null ? (hit ? ' <span class="pos">target met</span>' : ` <span class="neg">short of ${g.rd.show(g.target)}</span>`) : ''}</li>`);
+    }
+    const missReq = pool.filter(m => m.required && !S.place[m.uid]).length;
+    $('result').innerHTML = `Best found using ${list[0].placements.length}${unl ? '' : ' of ' + pool.length} modules <span class="mono">(<span class="P">P ${sgn(t[0])}</span> <span class="E">E ${sgn(t[1])}</span> <span class="Q">Q ${sgn(t[2])}</span>)</span>:<ol class="glist">${report.join('')}</ol>` +
+      (missReq ? ` <span class="neg">${missReq} "Must use" module${missReq > 1 ? 's' : ''} did not fit.</span>` : '') +
+      (opts.silent ? ' <span class="note">(example layout)</span>' : '');
+    sel = null; render();
+  });
+}
+function loadSnapshot(snap, doRender = true) {
+  if (snap.mods) S.mods = JSON.parse(JSON.stringify(snap.mods));
+  S.place = JSON.parse(JSON.stringify(snap.place));
+  for (const m of S.mods) { const p = S.place[m.uid]; if (p) { m.rot = p.rot; m.flip = p.flip; } }
+  if (doRender) { sel = null; render(); }
+}
+function renderTop() {
+  const list = S.tops[S.mode] || [];
+  const cur = JSON.stringify(S.place);
+  $('toplist').innerHTML = list.length ? `<div class="h">Top ${list.length} layouts from the last search</div>` + list.map((t, i) => {
+    const o = E.machineOutput(machine(), t.totals, { blast: (t.mods || S.mods).some(m => m.cat === 'furnace_module_blast' && t.place[m.uid]) });
+    const extra = o.purity != null ? ` · purity ${sgn(o.purity)}` : o.quality != null ? ` · quality ${sgn(o.quality)}` : o.extra && o.extra.length ? ` · ${o.extra[o.extra.length - 1].v}` : '';
+    const on = JSON.stringify(t.place) === cur;
+    return `<div class="toprow${on ? ' on' : ''}"><span class="rk">#${i + 1}</span><span class="mono"><span class="P">P ${sgn(t.totals[0])}</span> <span class="E">E ${sgn(t.totals[1])}</span> <span class="Q">Q ${sgn(t.totals[2])}</span></span><span class="note">power ${o.power}${extra} · ${t.count} modules</span><button data-top="${i}" ${on ? 'disabled' : ''}>${on ? 'Showing' : 'Load'}</button></div>`;
+  }).join('') : '';
+  $('toplist').querySelectorAll('button[data-top]').forEach(b => b.onclick = () => { undoPlace = JSON.parse(JSON.stringify({ mods: S.mods, place: S.place })); loadSnapshot(list[+b.dataset.top]); });
+}
+function runJob(job, onProgress) {
+  return new Promise(res => {
+    if (!worker) { setTimeout(() => res(E.optimize(job)), 10); return; }
+    worker.onmessage = e => { if (e.data.progress != null) onProgress(e.data.progress); else res(e.data.done); };
+    worker.onerror = () => { worker = null; res(E.optimize(job)); };
+    worker.postMessage(job);
+  });
+}
+$('run').onclick = () => runOptimizer();
+$('undo').onclick = () => { if (undoPlace) { S.mods = undoPlace.mods; S.place = undoPlace.place; undoPlace = null; render(); } };
+
+// ---------- module source ----------
+function renderSource() {
+  const unl = S.mode === 'unlimited';
+  $('src-mine').setAttribute('aria-checked', !unl); $('src-unl').setAttribute('aria-checked', unl);
+  $('unlopts').hidden = !unl;
+  $('umax').value = String(S.umax);
+  $('srcnote').textContent = unl ? 'any number of each allowed module' : 'uses every module you own that fits this machine';
+  const m = machine();
+  $('ucats').innerHTML = E.CATALOG.filter(c => E.allowedIn(m, c) && !['glitched_module', 'system_module_ruined', 'blank_module', 'system_module_corrupt'].includes(c.id))
+    .map(c => `<label><input type="checkbox" data-c="${c.id}" ${S.ucats.includes(c.id) ? 'checked' : ''}>${c.name}</label>`).join('');
+  const risky = { OVERVOLTED: 'can break', DEGRADING: 'wears out', LEARNING: 'shown fully trained' };
+  $('ueffs').innerHTML = Object.entries(E.EFFECTS).map(([k, e]) => `<label title="${e.desc}"><input type="checkbox" data-e="${k}" ${S.ueffs.includes(k) ? 'checked' : ''}>${e.name}${risky[k] ? ` <span class="risk">(${risky[k]})</span>` : ''}</label>`).join('');
+  $('ucats').querySelectorAll('input').forEach(i => i.onchange = () => { S.ucats = [...$('ucats').querySelectorAll('input:checked')].map(x => x.dataset.c).concat(S.ucats.filter(id => !E.allowedIn(m, E.CAT[id] || {}))); save(); });
+  $('ueffs').querySelectorAll('input').forEach(i => i.onchange = () => { S.ueffs = [...$('ueffs').querySelectorAll('input:checked')].map(x => x.dataset.e); save(); });
+}
+$('umax').onchange = e => { S.umax = +e.target.value; save(); };
+$('src-mine').onclick = () => setMode('mine');
+$('src-unl').onclick = () => setMode('unlimited');
+
+// ---------- import / export ----------
+function exportText() { save(); const { example: _, mods: __, place: ___, ...rest } = S; return JSON.stringify(rest); }
+document.querySelector('details').addEventListener('toggle', e => { if (e.target.open) $('io').value = exportText(); });
+$('copy').onclick = () => { const t = exportText(); $('io').value = t; navigator.clipboard?.writeText(t).then(() => { $('iomsg').textContent = 'Copied.'; }, () => { $('io').select(); $('iomsg').textContent = 'Select-all is on; press Ctrl+C.'; }) ?? ($('io').select()); };
+$('load').onclick = () => {
+  try {
+    const d = JSON.parse($('io').value);
+    // accepts both the current format (ws) and the first version (mods/place)
+    const wsIn = d.ws || { mine: { mods: d.mods, place: d.place } };
+    const clean = w => { if (!w || !Array.isArray(w.mods) || w.mods.some(m => !E.CAT[m.cat])) throw new Error('bad'); return { mods: w.mods.map(m => ({ ...m, uid: m.uid || newUid(), effects: (m.effects || []).filter(f => E.EFFECTS[f]) })), place: w.place || {} }; };
+    const ws = { mine: clean(wsIn.mine), unlimited: wsIn.unlimited ? clean(wsIn.unlimited) : { mods: [], place: {} } };
+    S = migrate({ machine: d.machine || 'hydroponic', bay: d.bay | 0, ws, mode: d.mode, ucats: d.ucats, ueffs: d.ueffs, goals: d.goals, preset: d.preset || 'custom', w: d.w || [1, 0, 0], m: d.m || [null, null, null], example: false });
+    sel = null; $('iomsg').textContent = 'Loaded.'; syncGoal(); render();
+  } catch (e) { $('iomsg').textContent = 'That text is not a saved setup. Paste the full text from Copy.'; }
+};
+$('reset').onclick = () => { S = migrate(example()); sel = null; syncGoal(); render(); runOptimizer({ silent: true }); };
+
+// ---------- render ----------
+function render() {
+  sanitize();
+  const m = machine();
+  $('machine').value = m.id; $('bay').value = m.noExpansion ? 0 : S.bay; $('bay').disabled = !!m.noExpansion;
+  const open = [...mask()].filter(c => c === '0').length;
+  $('bayinfo').textContent = `${open} open cells${m.noExpansion ? ' · this machine cannot be expanded' : ''}`;
+  const R = compute();
+  renderBoard(R); renderReadouts(R); renderInspector(R); renderLocker(); renderSource(); renderTop(); renderGoals();
+  $('undo').disabled = !undoPlace;
+  save();
+}
+syncGoal(); refreshForm(false);
+// ---------- user-supplied sprites ----------
+function renderArt() {
+  $('artstate').textContent = ATLAS ? '· using your sprites' : '· simple shapes';
+  $('artclear').hidden = !ATLAS;
+}
+$('artfile').addEventListener('change', e => {
+  const file = e.target.files && e.target.files[0]; if (!file) return;
+  const fr = new FileReader();
+  fr.onload = async () => {
+    const err = await loadAtlas(fr.result, true);
+    $('artmsg').innerHTML = err ? `<span class="neg">${err}</span>` : '<span class="pos">Sprites loaded. They are saved in this browser for next time.</span>';
+    e.target.value = ''; renderArt(); render();
+  };
+  fr.onerror = () => { $('artmsg').innerHTML = '<span class="neg">That file could not be read.</span>'; };
+  fr.readAsDataURL(file);
+});
+$('artclear').onclick = () => { ATLAS = null; try { localStorage.removeItem(ART_KEY); } catch (e) {} $('artmsg').textContent = 'Back to simple shapes.'; renderArt(); render(); };
+imgReady.then(() => { renderArt(); render(); if (S.example && !Object.keys(S.place).length) runOptimizer({ silent: true }); });
+</script>
+
+</html>
