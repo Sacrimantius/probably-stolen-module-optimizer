@@ -9,18 +9,19 @@ function ENGINE() {
 
   const STATS = ['P', 'E', 'Q'];
 
-  // ModuleEffectHelper.moduleEffects
+  // ModuleEffectHelper.moduleEffects. Names are the game's English text (tablemechanic mech_module_effect_*_name);
+  // `game` is the identifier stored in MODULE_EFFECT1_TAG / MODULE_EFFECT2_TAG.
   const EFFECTS = {
-    PREMIUM:      { name: 'Premium',            kind: 'module', mult: 1.2,  incompat: ['INFERIOR', 'LEARNING'], desc: 'Base stats x1.2.' },
-    INFERIOR:     { name: 'Inferior',           kind: 'module', mult: 0.8,  incompat: ['PREMIUM', 'LEARNING'], desc: 'Base stats x0.8.' },
-    RECEIVER:     { name: 'Receiver',           kind: 'module', incompat: [], desc: '+10% of base stats for each adjacent node.' },
-    TOP_MOUNT:    { name: 'Top Mount',          kind: 'module', incompat: [], desc: '+20% of base stats while touching the top edge of the bay.' },
-    SIDE_MOUNT:   { name: 'Side Mount',         kind: 'module', incompat: [], desc: '+20% of base stats while touching the left edge of the bay.' },
-    OVERVOLTED:   { name: 'Overvolted',         kind: 'module', mult: 2,    incompat: ['LEARNING'], desc: 'Base stats x2. 10% chance per finished job to turn into a Ruined Module.' },
-    DEGRADING:    { name: 'Degrading',          kind: 'module', mult: 2,    incompat: ['LEARNING'], desc: 'Base stats x2. Every finished job lowers each positive base stat by 1.' },
-    LEARNING:     { name: 'Learning Algorithm', kind: 'module', incompat: ['DEGRADING', 'OVERVOLTED', 'PREMIUM', 'INFERIOR', 'NEG_FEEDBACK'], desc: 'Positive base stats start at 0 and gain 1 per finished job, up to 2x the original.' },
-    NEG_FEEDBACK: { name: 'Negative Feedback',  kind: 'module', mult: 1.25, incompat: ['LEARNING'], desc: 'Base stats x1.25, but takes 1/4 of the negative base stats of every adjacent item.' },
-    SUPPORT:      { name: 'Support',            kind: 'node',   incompat: [], desc: 'Gets 1/5 of the base stats of every adjacent module (negatives too).' },
+    PREMIUM:      { name: 'Premium',            game: 'MODULE_EFFECT_PREMIUM', kind: 'module', mult: 1.2,  incompat: ['INFERIOR', 'LEARNING'], desc: 'Base stats x1.2.' },
+    INFERIOR:     { name: 'Inferior',           game: 'MODULE_EFFECT_INFERIOR', kind: 'module', mult: 0.8,  incompat: ['PREMIUM', 'LEARNING'], desc: 'Base stats x0.8.' },
+    RECEIVER:     { name: 'Receiver',           game: 'MODULE_EFFECT_RECEIVER', kind: 'module', incompat: [], desc: '+10% of base stats for each adjacent node.' },
+    TOP_MOUNT:    { name: 'Top Mount',          game: 'MODULE_EFFECT_TOP_MOUNT', kind: 'module', incompat: [], desc: '+20% of base stats while touching the top edge of the bay.' },
+    SIDE_MOUNT:   { name: 'Side Mount',         game: 'MODULE_EFFECT_SIDE_MOUNT', kind: 'module', incompat: [], desc: '+20% of base stats while touching the left edge of the bay.' },
+    OVERVOLTED:   { name: 'Overcharged',        game: 'MODULE_EFFECT_OVERVOLTED', kind: 'module', mult: 2,    incompat: ['LEARNING'], risky: true, desc: 'Base stats x2. 10% chance per finished job to turn into a Ruined Module.' },
+    DEGRADING:    { name: 'Degrading',          game: 'MODULE_EFFECT_DEGRADING', kind: 'module', mult: 2,    incompat: ['LEARNING'], risky: true, desc: 'Base stats x2. Every finished job lowers each positive base stat by 1.' },
+    LEARNING:     { name: 'Learning Algorithm', game: 'MODULE_EFFECT_LEARNING_ALGORITHM', kind: 'module', incompat: ['DEGRADING', 'OVERVOLTED', 'PREMIUM', 'INFERIOR', 'NEG_FEEDBACK'], desc: 'Positive base stats start at 0 and gain 1 per finished job, up to 2x the original. Negative stats also gain 1 per job until they reach 0.' },
+    NEG_FEEDBACK: { name: 'Negative Feedback',  game: 'MODULE_EFFECT_NEGATIVE_FEEDBACK', kind: 'module', mult: 1.25, incompat: ['LEARNING'], desc: 'Base stats x1.25, but takes 1/4 of the negative base stats of every adjacent item.' },
+    SUPPORT:      { name: 'Support Node',       game: 'NODE_EFFECT_SUPPORT', kind: 'node',   incompat: [], desc: 'Gets 1/5 of the base stats of every adjacent module (negatives too).' },
   };
 
   // Shape variants from PreBuiltItemHelper.SetBasicModuleShape / SetAdvancedModuleShape
@@ -38,68 +39,75 @@ function ENGINE() {
     ],
   };
 
-  // ModuleDirectory: [performance, efficiency, quality]
+  // ModuleDirectory: [performance, efficiency, quality]. Names are the game's English text (tableitem item_<id>_name).
   const CATALOG = [
     { id: 'system_module_performance', name: 'Performance Module', sprite: 'module_red', base: [16, 0, 0], type: 'UNIVERSAL', variants: 'basic' },
     { id: 'system_module_efficiancy', name: 'Efficiency Module', sprite: 'module_green', base: [0, 16, 0], type: 'UNIVERSAL', variants: 'basic' },
     { id: 'system_module_quality', name: 'Quality Module', sprite: 'module_yellow', base: [0, 0, 8], type: 'UNIVERSAL', variants: 'basic' },
     { id: 'system_module_overclock', name: 'Overclock Module', sprite: 'module_red_2', base: [36, -44, 0], type: 'UNIVERSAL', variants: 'advanced' },
     { id: 'system_module_eco', name: 'Eco Module', sprite: 'module_green_2', base: [-16, 32, 0], type: 'UNIVERSAL', variants: 'advanced' },
-    { id: 'system_module_fineness', name: 'Fineness Module', sprite: 'module_yellow_2', base: [-8, -15, 25], type: 'UNIVERSAL', variants: 'advanced' },
+    { id: 'system_module_fineness', name: 'Refinement Module', sprite: 'module_yellow_2', base: [-8, -15, 25], type: 'UNIVERSAL', variants: 'advanced' },
     { id: 'system_module_streamlining', name: 'Streamlining Module', sprite: 'module_green_3', base: [8, 25, -16], type: 'UNIVERSAL' },
-    { id: 'system_capped_neural_core', name: 'Capped Neural Core', sprite: 'module_black_4', base: [100, -100, 50], type: 'UNIVERSAL' },
-    { id: 'system_uncapped_neural_core', name: 'Uncapped Neural Core', sprite: 'module_black_5', base: [200, -100, 100], type: 'UNIVERSAL' },
+    { id: 'system_capped_neural_core', name: 'Neural Core Module (Capped)', sprite: 'module_black_4', base: [100, -100, 50], type: 'UNIVERSAL' },
+    { id: 'system_uncapped_neural_core', name: 'Neural Core Module (Uncapped)', sprite: 'module_black_5', base: [200, -100, 100], type: 'UNIVERSAL' },
     { id: 'blank_module', name: 'Blank Module', sprite: 'module_white', base: [0, 0, 0], type: 'UNIVERSAL' },
     { id: 'system_module_corrupt', name: 'Corrupted Module', sprite: 'module_corrupt', base: [-8, -5, 0], type: 'UNIVERSAL' },
     { id: 'glitched_module', name: 'Glitched Module (stuck)', sprite: 'module_corrupt', base: [15, -15, 0], type: 'UNIVERSAL' },
     { id: 'system_module_ruined', name: 'Ruined Module', sprite: 'module_ruined', base: [0, 0, 0], type: 'UNIVERSAL' },
-    { id: 'node_medium', name: 'Node', sprite: 'node_m', base: [0, 0, 0], type: 'UNIVERSAL', node: true },
-    { id: 'node_small', name: 'Small Node', sprite: 'node_s', base: [0, 0, 0], type: 'UNIVERSAL', node: true, noEffects: true },
-    { id: 'farm_module_nutrifruit', name: 'Nutrifruit Module', sprite: 'farm_module_l2', base: [-10, -10, 0], type: 'HYDROPONIC', extra: 'Nutrifruit yield +1' },
-    { id: 'farm_module_dream_cap', name: 'Dream Cap Neutralizer', sprite: 'farm_module_l4', base: [15, 15, 0], type: 'HYDROPONIC', extra: 'Dream cap yield +2' },
-    { id: 'farm_module_kotton_loom', name: 'Kotton Loom Module', sprite: 'farm_module_l1', base: [-50, -100, 0], type: 'HYDROPONIC', extra: 'Produces kotton fabric' },
-    { id: 'farm_module_nightmare_cap', name: 'Nightmare Cap Module', sprite: 'farm_module5', base: [-33, -50, 0], type: 'HYDROPONIC', extra: 'Nightmare cap' },
-    { id: 'farm_module_fillerweed_production', name: 'Fillerweed Production', sprite: 'farm_module_l5', base: [0, -25, 0], type: 'HYDROPONIC', extra: 'Fillerweed yield +4' },
-    { id: 'farm_module_hydroreed_filter', name: 'Hydroreed Filter', sprite: 'farm_module_l6', base: [0, -15, 0], type: 'HYDROPONIC', extra: 'Hydroreed yield +1' },
-    { id: 'farm_module_smuggler', name: 'Smuggler Module', sprite: 'farm_module6', base: [0, 0, 0], type: 'HYDROPONIC', extra: 'Removes contraband' },
-    { id: 'evaporator_module_solvent_recovery', name: 'Solvent Recovery', sprite: 'long_module1', base: [0, -25, 50], type: 'EVAPORATOR', extra: 'Solvent only' },
-    { id: 'dna_manipulator_module_stabilizer', name: 'DNA Stabilizer', sprite: 'long_module1', base: [-50, -25, 0], type: 'DNA_MANIPULATOR', extra: 'Stabilizer' },
-    { id: 'dna_manipulator_module_positive_filter', name: 'DNA Positive Filter', sprite: 'long_module1', base: [0, -25, 0], type: 'DNA_MANIPULATOR', extra: 'Positive filter' },
-    { id: 'dna_manipulator_module_negative_filter', name: 'DNA Negative Filter', sprite: 'long_module1', base: [0, -25, 0], type: 'DNA_MANIPULATOR', extra: 'Negative filter' },
-    { id: 'dna_manipulator_module_precision', name: 'DNA Precision', sprite: 'long_module1', base: [-75, -75, 0], type: 'DNA_MANIPULATOR', extra: 'Precision' },
-    { id: 'printer_module_metal', name: 'Metal Printing Module', sprite: 'long_module1', base: [0, -50, 0], type: 'PRINTER', extra: 'Metal printing' },
-    { id: 'printer_module_melee_batch', name: 'Melee Batch Module', sprite: 'long_module2', base: [-50, -50, 0], type: 'PRINTER', extra: 'Melee output +1' },
-    { id: 'printer_module_cnc', name: 'CNC Module', sprite: 'long_module3', base: [-25, -25, 0], type: 'PRINTER', extra: 'CNC printing' },
-    { id: 'alarm_module_transmitter', name: 'Alarm Transmitter', sprite: 'farm_module_l7', base: [0, -50, 0], type: 'ALARM', extra: 'Reputation +1' },
-    { id: 'furnace_module_blast', name: 'Blast Furnace Module', sprite: 'farm_module_l8', base: [0, -100, 0], type: 'FURNACE', extra: 'Blast furnace 3 to 2' },
-    { id: 'furnace_module_junk', name: 'Junk Module', sprite: 'long_module3', base: [0, 0, 0], type: 'FURNACE', extra: 'Junk 6 to 4' },
+    { id: 'node_medium', name: 'Node (Medium)', sprite: 'node_m', base: [0, 0, 0], type: 'UNIVERSAL', node: true },
+    { id: 'node_small', name: 'Node (Small)', sprite: 'node_s', base: [0, 0, 0], type: 'UNIVERSAL', node: true, noEffects: true },
+    { id: 'farm_module_nutrifruit', name: 'Nutrifruit Hydroponic Module', sprite: 'farm_module_l2', base: [-10, -10, 0], type: 'HYDROPONIC', extra: 'Nutrifruit yield +1' },
+    { id: 'farm_module_dream_cap', name: 'Dream Cap Neutralizer Hydroponic Module', sprite: 'farm_module_l4', base: [15, 15, 0], type: 'HYDROPONIC', extra: 'Dream Cap yield +2' },
+    { id: 'farm_module_kotton_loom', name: 'Kotton Auto Loom Hydroponic Module', sprite: 'farm_module_l1', base: [-50, -100, 0], type: 'HYDROPONIC', extra: 'Produces Kotton Fabric' },
+    { id: 'farm_module_nightmare_cap', name: 'Dream Cap Nightmare Hydroponic Module', sprite: 'farm_module5', base: [-33, -50, 0], type: 'HYDROPONIC', extra: 'Farmed Dream Cap becomes Nightmare Cap' },
+    { id: 'farm_module_fillerweed_production', name: 'Fillerweed Production Hydroponic Module', sprite: 'farm_module_l5', base: [0, -25, 0], type: 'HYDROPONIC', extra: 'Fillerweed yield +4' },
+    { id: 'farm_module_hydroreed_filter', name: 'Hydroreed Filter Hydroponic Module', sprite: 'farm_module_l6', base: [0, -15, 0], type: 'HYDROPONIC', extra: 'Hydroreed Filter yield +1' },
+    { id: 'farm_module_smuggler', name: 'Hydroponic Smuggler Module', sprite: 'farm_module6', base: [0, 0, 0], type: 'HYDROPONIC', extra: 'Removes contraband status of growing seeds' },
+    { id: 'evaporator_module_solvent_recovery', name: 'Evaporator Solvent Recovery Module', sprite: 'long_module1', base: [0, -25, 50], type: 'EVAPORATOR', extra: 'Will only recover Solvent' },
+    { id: 'dna_manipulator_module_stabilizer', name: 'Genetic Stabilizer Module', sprite: 'long_module1', base: [-50, -25, 0], type: 'DNA_MANIPULATOR', extra: 'The target survives extraction' },
+    { id: 'dna_manipulator_module_positive_filter', name: 'Positive Trait Filter Module', sprite: 'long_module1', base: [0, -25, 0], type: 'DNA_MANIPULATOR', extra: 'Extracts positive traits only' },
+    { id: 'dna_manipulator_module_negative_filter', name: 'Negative Trait Filter Module', sprite: 'long_module1', base: [0, -25, 0], type: 'DNA_MANIPULATOR', extra: 'Extracts negative traits only' },
+    { id: 'dna_manipulator_module_precision', name: 'Precision Extraction Module', sprite: 'long_module1', base: [-75, -75, 0], type: 'DNA_MANIPULATOR', extra: 'Extracts the scanned trait only' },
+    { id: 'printer_module_metal', name: 'Metal Printer Module', sprite: 'long_module1', base: [0, -50, 0], type: 'PRINTER', extra: 'Metal Printing' },
+    { id: 'printer_module_melee_batch', name: 'Melee Batch Module', sprite: 'long_module2', base: [-50, -50, 0], type: 'PRINTER', extra: 'Printed Melee Weapon Output +1' },
+    { id: 'printer_module_cnc', name: 'Computer Numerical Control Module', sprite: 'long_module3', base: [-25, -25, 0], type: 'PRINTER', extra: 'Computer Numerical Control' },
+    { id: 'alarm_module_transmitter', name: 'Alarm Transmitter Module', sprite: 'farm_module_l7', base: [0, -50, 0], type: 'ALARM', extra: 'Gain +1 reputation per night' },
+    { id: 'furnace_module_blast', name: 'Furnace Module (Blast)', sprite: 'farm_module_l8', base: [0, -100, 0], type: 'FURNACE', extra: 'Uses 3 materials for 2 ingots, lower purity' },
+    { id: 'furnace_module_junk', name: 'Furnace Module (Junk Processing)', sprite: 'long_module3', base: [0, 0, 0], type: 'FURNACE', extra: 'Convert 6 Junk into 4 Scrap Metal' },
   ];
   const CAT = Object.fromEntries(CATALOG.map(c => [c.id, c]));
 
-  const FULL = '0'.repeat(35);
+  // Standard machines: a 7x5 grid; MachineHelper.ExpandModule / LoadUpgrade reshape it per MODULE_UPGRADE_STAGE_INT.
   const BAYS = [
     { name: 'Standard bay', mask: '10000010001000001110000010001000001' },
     { name: 'Expansion 1', mask: '10000010000000000000000000001000001' },
-    { name: 'Expansion 2', mask: FULL },
+    { name: 'Expansion 2', mask: '0'.repeat(35) },
   ];
 
-  // Machine*.cs: InitMachinery power, InitProgressTypeMachine speed, *_RATIO_INT tags, allowed module types
   // Machine*.cs: InitMachinery power, InitProgressTypeMachine speed, *_RATIO_INT tags, allowed module types.
   // adjQ: machine reads quality through GetAjustedQuality (total / qr). noQ: quality is not read at all.
+  // game: the machine's item identifier in save files. grid: a machine with its own bay size (no expansion).
   const MACHINES = [
-    { id: 'hydroponic', name: 'Hydroponic Bay', power: 8, speed: 8, pr: 2, qr: 2, adjQ: true, types: ['HYDROPONIC'], uses: 'Quality bonus improves the harvest split (bigger, healthier plants).' },
-    { id: 'dna', name: 'DNA Manipulator', power: 12, speed: 10, pr: 2, qr: 2, adjQ: true, types: ['DNA_MANIPULATOR'], uses: 'Quality bonus raises gene-edit success chance.' },
-    { id: 'printer', name: '3D Printer', power: 8, speed: 24, qr: 4, adjQ: true, types: ['PRINTER'], uses: 'Quality bonus raises printed item quality.' },
-    { id: 'winerack', name: 'Wine Rack', power: 24, pr: 2, er: 2, perfCutsPower: true, types: [], uses: 'Performance also cuts power draw.' },
-    { id: 'dealmaker', name: 'Deal Maker', power: 25, qr: 10, adjQ: true, dealMaker: true, types: [], uses: 'Performance and efficiency both cut power.' },
-    { id: 'projector', name: 'Projector', power: 16, pr: 4, qr: 2, types: [] },
-    { id: 'purifier', name: 'Water Purifier', power: 4, types: [] },
-    { id: 'desequencer', name: 'Desequencer', power: 10, speed: 33, noQ: true, types: ['ALARM'] },
-    { id: 'furnace', name: 'Furnace', power: 8, types: ['FURNACE'], purity: true, uses: 'Performance is not used. Ingot purity +1 step per 100 quality (-1 with a Blast Furnace Module).' },
-    { id: 'moisture', name: 'Moisture Farm', power: 6, types: [] },
-    { id: 'alarm', name: 'Alarm', power: 4, noQ: true, types: ['ALARM'] },
-    { id: 'evaporator', name: 'Evaporator', power: 6, types: ['EVAPORATOR'], noExpansion: true },
+    { id: 'hydroponic', game: 'hydroponic', name: 'Hydroponic System', power: 8, speed: 8, pr: 2, qr: 2, adjQ: true, types: ['HYDROPONIC'] },
+    { id: 'dna', game: 'plant_dna_manipulator', name: 'DNA Manipulator', power: 12, speed: 10, pr: 2, qr: 2, adjQ: true, types: ['DNA_MANIPULATOR'], uses: 'Quality bonus raises gene-edit success chance.' },
+    { id: 'printer', game: 'printer', name: '3D Printer', power: 8, speed: 24, qr: 4, adjQ: true, types: ['PRINTER'], uses: 'Quality bonus raises printed item quality.' },
+    { id: 'winerack', game: 'wine_rack', name: 'AgeWell', power: 24, pr: 2, er: 2, perfCutsPower: true, types: [], uses: 'Performance also cuts power draw.' },
+    { id: 'dealmaker', game: 'deal_maker', name: 'Deal Maker', power: 25, qr: 10, adjQ: true, dealMaker: true, types: [], uses: 'Performance and efficiency both cut power.' },
+    { id: 'projector', game: 'mirage_projector', name: 'Mirage Projector', power: 16, pr: 4, qr: 2, types: [] },
+    { id: 'purifier', game: 'water_purifier', name: 'Water Purifier', power: 4, types: [] },
+    { id: 'desequencer', game: 'desequencer', name: 'Cryptographic Desequencer', power: 10, speed: 33, noQ: true, types: ['ALARM'] },
+    { id: 'furnace', game: 'furnace', name: 'Furnace', power: 8, types: ['FURNACE'], purity: true, uses: 'Performance is not used. Ingot purity +1 step per 100 quality (-1 with a Furnace Module (Blast)).' },
+    { id: 'moisture', game: 'moisture_farm', name: 'Moisture Farm', power: 6, types: [] },
+    { id: 'alarm', game: 'security_alarm', name: 'Alarm System', power: 4, noQ: true, types: ['ALARM'] },
+    // MachineEvaporator.CreateMachineInventoryWindow: new GameGridInventory(4, 4), no expansion
+    { id: 'evaporator', game: 'evaporator', name: 'Evaporator', power: 6, types: ['EVAPORATOR'], grid: { W: 4, H: 4, mask: '0'.repeat(16), name: 'Evaporator bay (4×4)' } },
   ];
+  // The bay of machine m at expansion stage (0-2): { W, H, mask, name }
+  function bayFor(m, stage) {
+    if (m.grid) return m.grid;
+    const b = BAYS[Math.max(0, Math.min(2, stage | 0))];
+    return { W: 7, H: 5, mask: b.mask, name: b.name };
+  }
 
   function variantMult(cat, variant) {
     if (!cat.variants) return 1;
@@ -118,7 +126,8 @@ function ENGINE() {
     });
   }
 
-  // Base stats after shape multiplier, creation effects and use count
+  // Base stats after shape multiplier, creation effects and use count.
+  // inst.fixedBase (from a save file whose numbers do not match the rules) overrides the computed stats.
   function baseStats(inst) {
     const cat = CAT[inst.cat];
     let b = cat.base.slice();
@@ -132,9 +141,20 @@ function ENGINE() {
       if (e === 'LEARNING') { learnMax = b.map(v => (v > 0 ? v * 2 : null)); b = b.map(v => (v > 0 ? 0 : v)); }
     }
     const uses = Math.max(0, inst.uses | 0);
-    if (learnMax) b = b.map((v, i) => (learnMax[i] != null ? Math.min(learnMax[i], uses) : v));
+    // ModuleEffectHelper.OnUsedLearningAlgo: a stat below its max gains 1 per use; a stat with no max
+    // (it was negative) has max 0, so negatives also climb to 0.
+    if (learnMax) b = b.map((v, i) => (learnMax[i] != null ? Math.min(learnMax[i], uses) : Math.min(0, v + uses)));
     if (effs.includes('DEGRADING')) b = b.map(v => (v > 0 ? Math.max(0, v - uses) : v));
+    if (Array.isArray(inst.fixedBase) && inst.fixedBase.length === 3) b = inst.fixedBase.slice();
     return { base: b, learnMax };
+  }
+  // Finished jobs after which a Learning Algorithm module stops improving
+  function learnFull(inst) {
+    const effs = (inst.effects || []).filter(Boolean);
+    if (!effs.includes('LEARNING')) return 0;
+    const b0 = baseStats({ ...inst, uses: 0, fixedBase: null });
+    const neg = Math.max(0, ...b0.base.map(v => -v));
+    return Math.max(neg, ...b0.learnMax.filter(x => x != null));
   }
 
   function shapeOf(rows) {
@@ -224,7 +244,9 @@ function ENGINE() {
     if (m.dealMaker) r.bargain = Math.max(0, 10 + idiv(Q, m.qr));
     // machine-specific readings of the raw totals: [{ k: label, v: value, was: value with an empty bay, note }]
     const x = r.extra = [];
-    if (m.id === 'moisture') {
+    if (m.id === 'hydroponic') {
+      x.push({ k: 'Harvest size', v: HARVEST.map(([b]) => harvestOf(b, r.quality)).join(' / '), was: HARVEST.map(([b]) => b).join(' / '), note: 'for plants that give ' + HARVEST.map(([b]) => b).join(' / ') });
+    } else if (m.id === 'moisture') {
       // MachineMoistureFarm.GetOutputVolume / GetOutputQuality
       const grade = q => { const n = q + 50; return n < 0 ? 'Gutterflow' : n < 50 ? 'Rustwater' : n < 100 ? 'Ghostwater' : n < 150 ? 'Basewater' : n < 200 ? 'High Quality Water' : 'Pure Water'; };
       x.push({ k: 'Water per night', v: Math.max(850 * (100 + P) / 100, 0).toFixed(0) + ' L', was: '850 L', note: 'less when several farms share the air' });
@@ -250,7 +272,7 @@ function ENGINE() {
     return r;
   }
 
-  const PURITY = { 5: 'Very Low', 6: 'Low', 7: 'Fair', 8: 'High', 9: 'Very High', 10: 'Perfect' };
+  const PURITY = { 5: 'Very Low Purity', 6: 'Low Purity', 7: 'Fair Purity', 8: 'High Purity', 9: 'Very High Purity', 10: 'Perfect Purity' };
   const GRADES = ['Gutterflow', 'Rustwater', 'Ghostwater', 'Basewater', 'High Quality Water', 'Pure Water'];
   const gradeIndex = q => { const n = q + 50; return n < 0 ? 0 : n < 50 ? 1 : n < 100 ? 2 : n < 150 ? 3 : n < 200 ? 4 : 5; };
   const purifierCap = q => { const mult = q >= 200 ? 0 : q >= 100 ? 0.1 : q >= 75 ? 0.2 : q >= 50 ? 0.35 : q >= 25 ? 0.65 : q >= 15 ? 0.85 : 1; return 10000 - Math.round(99 * mult); };
@@ -261,6 +283,11 @@ function ENGINE() {
     hydroponic: [[11, 'Fillerweed'], [18, 'Hydroreed, Bloomberry'], [21, 'Coffee'], [23, 'Nutrifruit'], [28, 'Dream Cap'], [32, 'Kotton']],
     dna: [[20, 'Complexity 0'], [24, 'Complexity 1'], [28, 'Complexity 2'], [32, 'Complexity 3'], [40, 'Complexity 5']],
   };
+  // PlantList: base harvest quantity per plant (before genetics). Hydroreed (0) is harvested by its own rule.
+  const HARVEST = [[4, 'Fillerweed'], [5, 'Nutrifruit'], [8, 'Coffee, Dream Cap, Bloomberry'], [9, 'Kotton']];
+  // HydroponicHelper.GetHarvestCount: round(base + base * adjustedQuality / 100), midpoint away from zero
+  const roundAway = v => Math.sign(v) * Math.round(Math.abs(v));
+  const harvestOf = (base, q) => Math.max(0, roundAway(base + base * (q / 100)));
   // Each reading: { id, label, w (stat mix it grows with), value(totals, opts) higher = better, show(value), low (lower is better for the player), levels? }
   function readings(m, ctx = {}) {
     const out = [];
@@ -273,10 +300,12 @@ function ENGINE() {
       R('purity_ore', 'Ingot purity, all-ore input', [0, 0, 1], t => lvl(t, 2), v => PURITY[v], { levels });
       R('purity_scrap', 'Ingot purity, all-scrap input', [0, 0, 1], t => lvl(t, 0), v => PURITY[v], { levels });
     }
+    // A reading with `jobs` takes a parameter (o.job) picked from that list: job size, base harvest...
     if (m.speed) {
-      R('cycles', 'Cycles per job', [1, 0, 0], (t, o = {}) => -Math.ceil((o.job || 100) / Math.max(1, out0(t).speed)), v => -v + ' cycle' + (v === -1 ? '' : 's'), { low: true, job: true });
+      R('cycles', 'Cycles per job', [1, 0, 0], (t, o = {}) => -Math.ceil((o.job || 100) / Math.max(1, out0(t).speed)), v => -v + ' cycle' + (v === -1 ? '' : 's'), { low: true, job: true, jobs: JOBS[m.id] || [], jobLabel: 'job size' });
       R('speed', 'Processing speed', [1, 0, 0], t => out0(t).speed, v => v + ' per cycle');
     }
+    if (m.id === 'hydroponic') R('harvest', 'Harvest size', [0, 0, 1], (t, o = {}) => harvestOf(o.job || 8, out0(t).quality), v => v + ' per harvest', { job: true, jobs: HARVEST, jobLabel: 'base harvest' });
     if (m.dealMaker) R('bargain', 'Bargain bonus', [0, 0, 1], t => out0(t).bargain, v => v + '%');
     else if (m.adjQ) R('qbonus', 'Quality bonus', [0, 0, 1], t => out0(t).quality, v => (v > 0 ? '+' : '') + v);
     if (m.id === 'moisture') {
@@ -346,7 +375,7 @@ function ENGINE() {
         for (const effects of combos) {
           const inst = { cat: id, variant, effects, uses: 0 };
           const { base, learnMax } = baseStats(inst);
-          if (learnMax) inst.uses = Math.max(...learnMax.filter(x => x != null)); // fully trained
+          if (learnMax) inst.uses = learnFull(inst); // fully trained
           const b = baseStats(inst).base;
           const key = effects.filter(e => POSITIONAL.includes(e)).sort().join('+');
           (groups[key] = groups[key] || []).push({ inst, base: b });
@@ -401,6 +430,8 @@ function ENGINE() {
     const terms = opts.terms || [0, 1, 2].map(k => ({ w: [0, 1, 2].map(j => (j === k ? 1 : 0)), scale: opts.weights[k], cap: (opts.caps || [])[k] ?? null, min: (opts.mins || [])[k] ?? null }));
     // a capped stat earns nothing above its cap
     const PEN = 50;
+    const TB_RISK = 0.005, TB_MOD = 0.003, TB_EFF = 0.0003;
+    const risky = designs.map(d => (d.effects || []).some(e => EFFECTS[e] && EFFECTS[e].risky));
 
     function addEntry(d, p) {
       const e = ed.length; ed.push(d); ep.push(p); used[d]++;
@@ -460,9 +491,11 @@ function ENGINE() {
         if (set) { totals[0] += set[0]; totals[1] += set[1]; totals[2] += set[2]; }
         else { totals[0] += t0 + d0; totals[1] += t1 + d1; totals[2] += t2 + d2; }
       }
-      let missing = 0;
-      for (let d = 0; d < D; d++) if (designs[d].min > used[d]) missing += designs[d].min - used[d];
-      let s = -0.01 * ed.length - 0.001 * effCount - 1e4 * missing; // tie-breaks: fewer modules, then fewer effects
+      let missing = 0, riskyCount = 0;
+      for (let d = 0; d < D; d++) { if (designs[d].min > used[d]) missing += designs[d].min - used[d]; if (risky[d]) riskyCount += used[d]; }
+      // tie-breaks (together always below the smallest real score step of 0.25):
+      // no Overcharged / Degrading modules, then fewer modules, then fewer effects
+      let s = -TB_RISK * riskyCount - TB_MOD * ed.length - TB_EFF * effCount - 1e4 * missing;
       for (const t of terms) {
         const v = t.w[0] * totals[0] + t.w[1] * totals[1] + t.w[2] * totals[2];
         if (t.scale) s += t.scale * (t.cap != null && v > t.cap ? t.cap : v);
@@ -482,6 +515,7 @@ function ENGINE() {
     const isFixed = e => designs[ed[e]].fixed;
 
     const iters = opts.iters || 20000, restarts = opts.restarts || 10;
+    const annealShare = opts.exactMs > 0 ? 0.3 : 1;
     // best distinct layouts (distinct = different stat totals), best first
     const TOPN = opts.topN || 5, top = [];
     function consider(sc) {
@@ -534,7 +568,169 @@ function ENGINE() {
           for (let k = removed.length - 1; k >= 0; k--) addEntry(removed[k][0], removed[k][1]);
         }
       }
-      if (progress) progress((r + 1) / restarts);
+      if (progress) progress(((r + 1) / restarts) * annealShare);
+    }
+
+    // ---------- exact search: branch and bound over every layout ----------
+    // Cells are filled in reading order: the first undecided cell either gets a module whose first cell is
+    // that cell, or is left empty for good. A branch is cut when an optimistic score for anything it could
+    // still become (bound) cannot beat the best layout found so far (annealing seeds it). If the search
+    // finishes before opts.exactMs runs out, the best layout is proven optimal for this score.
+    let proven = null, exactNodes = 0;
+    const exactOk = terms.every(t => (t.scale || 0) >= 0 && t.w.every(x => x >= 0));
+    if (opts.exactMs > 0 && movable.length && exactOk) {
+      const t0 = Date.now(), deadline = t0 + opts.exactMs, N = W * H;
+      const emptyMark = new Uint8Array(N), stamp = new Int32Array(N);
+      let sid = 0;
+      const anchored = places.map(pl => {
+        const m = new Map();
+        pl.forEach((p, i) => { let a = N; for (const q of p.idx) if (q < a) a = q; if (!m.has(a)) m.set(a, []); m.get(a).push(i); });
+        return m;
+      });
+      const cellsOf = designs.map(d => d.shape.cells.length);
+      const cap = c => (c === Infinity ? 40 : c);
+      // positive base stats offered by modules (not nodes), best first, one entry per copy
+      const posList = [0, 1, 2].map(k => {
+        const l = []; designs.forEach(d => { if (!d.node && d.base[k] > 0) for (let c = 0; c < cap(d.count); c++) l.push(d.base[k]); });
+        return l.sort((a, b) => b - a);
+      });
+      const topSum = (k, n) => { let s = 0; const l = posList[k]; for (let i = 0; i < n && i < l.length; i++) s += l[i]; return s; };
+      const nodeCopies = designs.reduce((a, d) => a + (d.node ? cap(d.count) : 0), 0);
+      // most neighbours a piece can have: its adjacent cells inside the bay, over every legal placement
+      const adjMax = designs.map((d, i) => {
+        let best = 0;
+        for (const p of places[i]) {
+          const own = new Set(p.idx), adj = new Set();
+          for (const c of p.idx) {
+            const x = c % W, y = (c - x) / W;
+            for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+              const q = ny * W + nx;
+              if (nx >= 0 && ny >= 0 && nx < W && ny < H && open[q] && !own.has(q)) adj.add(q);
+            }
+          }
+          if (adj.size > best) best = adj.size;
+        }
+        return best;
+      });
+      // the most a module could ever give the bay, wherever it sits
+      const U = designs.map((d, i) => {
+        const b = d.base, ef = d.effects || [];
+        if (ef.includes('SUPPORT')) return [0, 1, 2].map(k => idiv(topSum(k, adjMax[i]), 5));
+        return [0, 1, 2].map(k => {
+          let u = b[k];
+          if (b[k] > 0) {
+            if (ef.includes('RECEIVER')) u += idiv(b[k] * 10 * Math.min(nodeCopies, adjMax[i]), 100);
+            if (ef.includes('TOP_MOUNT')) u += idiv(b[k] * 20, 100);
+            if (ef.includes('SIDE_MOUNT')) u += idiv(b[k] * 20, 100);
+          }
+          return u;
+        });
+      });
+      const tv = terms.map(t => U.map(u => t.w[0] * u[0] + t.w[1] * u[1] + t.w[2] * u[2]));
+      const order = terms.map((t, ti) => movable.slice().sort((a, b) => tv[ti][b] / cellsOf[b] - tv[ti][a] / cellsOf[a]));
+      const mainTerm = Math.max(0, terms.findIndex(t => t.scale > 0));
+      const branchOrder = order[mainTerm];
+      const isFree = c => open[c] && owner[c] < 0 && !emptyMark[c];
+      const nbs = [];
+      // upper bound of a placed module's final contribution, given what is around it now and the
+      // undecided cells next to it (each can bring at most one more neighbour)
+      function placedUB(e, acc, remNodes) {
+        const d = ed[e], it = designs[d], b = it.base, ef = it.effects;
+        if (!ef.length) { acc[0] += b[0]; acc[1] += b[1]; acc[2] += b[2]; return; }
+        const pl = places[d][ep[e]];
+        nbs.length = 0; let free = 0; sid++;
+        for (const c of pl.idx) {
+          const x = c % W, y = (c - x) / W;
+          for (let k = 0; k < 4; k++) {
+            const nx = x + (k === 0 ? 1 : k === 1 ? -1 : 0), ny = y + (k === 2 ? 1 : k === 3 ? -1 : 0);
+            if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+            const q = ny * W + nx, j = owner[q];
+            if (j >= 0) { if (j !== e && !nbs.includes(j)) nbs.push(j); }
+            else if (isFree(q) && stamp[q] !== sid) { stamp[q] = sid; free++; }
+          }
+        }
+        if (ef.includes('SUPPORT')) {
+          for (let k = 0; k < 3; k++) {
+            let s = topSum(k, free);
+            for (const j of nbs) if (!designs[ed[j]].node) s += designs[ed[j]].base[k];
+            acc[k] += idiv(s, 5);
+          }
+          return;
+        }
+        let nNow = 0; for (const j of nbs) if (designs[ed[j]].node) nNow++;
+        const nMax = nNow + Math.min(free, remNodes);
+        for (let k = 0; k < 3; k++) {
+          let u = b[k];
+          for (const f of ef) {
+            if (f === 'RECEIVER') u += idiv(b[k] * 10 * (b[k] > 0 ? nMax : nNow), 100);
+            else if (f === 'TOP_MOUNT') { if (pl.y <= 0) u += idiv(b[k] * 20, 100); }
+            else if (f === 'SIDE_MOUNT') { if (pl.x <= 0) u += idiv(b[k] * 20, 100); }
+            else if (f === 'NEG_FEEDBACK') { let s = 0; for (const j of nbs) { const v = designs[ed[j]].base[k]; if (v < 0) s += v; } u += idiv(s, 4); }
+          }
+          acc[k] += u;
+        }
+      }
+      const acc = [0, 0, 0];
+      function bound() {
+        let remNodes = 0;
+        for (let d = 0; d < D; d++) if (designs[d].node && !designs[d].fixed) remNodes += cap(designs[d].count) - used[d];
+        acc[0] = acc[1] = acc[2] = 0;
+        let effC = 0, rc = 0;
+        for (let e = 0; e < ed.length; e++) { placedUB(e, acc, remNodes); effC += designs[ed[e]].effects.length; if (risky[ed[e]]) rc++; }
+        let free = 0; for (let c = 0; c < N; c++) if (isFree(c)) free++;
+        // with step pruning the bound is on the goal alone (tie-breaks left out)
+        let s = coarse ? 0 : -TB_RISK * rc - TB_MOD * ed.length - TB_EFF * effC;
+        for (let ti = 0; ti < terms.length; ti++) {
+          const t = terms[ti];
+          let v = t.w[0] * acc[0] + t.w[1] * acc[1] + t.w[2] * acc[2], f = free;
+          // fractional knapsack over the free cells with the remaining modules
+          for (const d of order[ti]) {
+            if (f <= 0) break;
+            const val = tv[ti][d]; if (val <= 0) break;
+            const rem = designs[d].count - used[d]; if (rem <= 0) continue;
+            const sz = cellsOf[d], n = Math.min(rem, Math.floor(f / sz));
+            v += n * val; f -= n * sz;
+            if (n < rem && f > 0) { v += (val * f) / sz; f = 0; }
+          }
+          if (t.scale) s += t.scale * (t.cap != null && v > t.cap ? t.cap : v);
+          if (t.min != null && v < t.min - 1e-9) s -= PEN * (t.min - v) + 100;
+        }
+        return s;
+      }
+      // Real scores move in steps of `step` (weights are multiples of 0.25; tie-breaks add less than 0.25 in
+      // total), so a branch whose bound is below best + step cannot beat the best on the goal itself.
+      const q4 = x => Math.abs(x * 4 - Math.round(x * 4)) < 1e-9;
+      const coarse = terms.every(t => t.w.every(q4) && q4(t.scale || 0) && (t.cap == null || q4(t.cap)) && (t.min == null || q4(t.min)));
+      const step = coarse ? 0.25 - 1e-6 : 1e-9;
+      let best = top.length ? top[0].s : -Infinity, timedOut = false;
+      function dfs(from) {
+        if ((++exactNodes & 1023) === 0) {
+          const now = Date.now();
+          if (now > deadline) { timedOut = true; return; }
+          if (progress && (exactNodes & 65535) === 0) progress(annealShare + (1 - annealShare) * (now - t0) / opts.exactMs);
+        }
+        if (bound() < best + step) return;
+        const sc = score(); if (sc > best) best = sc; consider(sc);
+        let c = from; while (c < N && !isFree(c)) c++;
+        if (c >= N) return;
+        for (const d of branchOrder) {
+          if (used[d] >= designs[d].count) continue;
+          const list = anchored[d].get(c); if (!list) continue;
+          for (const p of list) {
+            let ok = true;
+            for (const q of places[d][p].idx) if (owner[q] >= 0 || emptyMark[q]) { ok = false; break; }
+            if (!ok) continue;
+            addEntry(d, p); dfs(c + 1); removeEntry(ed.length - 1);
+            if (timedOut) return;
+          }
+        }
+        emptyMark[c] = 1; dfs(c + 1); emptyMark[c] = 0;
+      }
+      reset();
+      if (!top.length) consider(score());
+      dfs(0);
+      proven = !timedOut;
+      if (progress) progress(1);
     }
 
     // Finishing pass: for every placed module, try each other design with the same shape in the exact
@@ -572,9 +768,115 @@ function ENGINE() {
       score: t.s, totals: t.totals,
       placements: t.ed.map((d, k) => { const p = places[d][t.ep[k]]; return { design: d, rot: p.rot, flip: p.flip, x: p.x, y: p.y }; }),
     }));
-    return { ...layouts[0], top: layouts };
+    return { ...layouts[0], top: layouts, proven, exactNodes, exactOk };
   }
 
-  return { STATS, EFFECTS, VARIANTS, CATALOG, CAT, BAYS, MACHINES, baseStats, variantMult, spriteName, allowedSecond, shapeOf, orient, orientations, evaluate, machineOutput, readings, floorFor, usefulCap, mixOf, JOBS, allowedIn, optimize, unlimitedDesigns, POSITIONAL, idiv, mulTrunc };
+  // ---------- save file import ----------
+  // Reads a save_N.es3 (Easy Save 3: JSON, but dictionary keys may be bare numbers). Read-only.
+  // shapeRows(spriteName) -> rows like ['11','01'] for matching a module's grid shape to its variant.
+  // Returns { machines: [{ game, id, name, stage, mods: [{ inst, place, temp }] }], loose: [inst], skipped: [id] }
+  function parseLenientJson(t) {
+    let o = '', i = 0, inS = false;
+    const n = t.length;
+    while (i < n) {
+      const c = t[i];
+      if (inS) {
+        if (c === '\\') { o += c + t[i + 1]; i += 2; continue; }
+        if (c === '"') inS = false;
+        o += c; i++; continue;
+      }
+      if (c === '"') { inS = true; o += c; i++; continue; }
+      if (c === '{' || c === ',') {
+        o += c; i++;
+        let j = i; while (j < n && (t[j] === ' ' || t[j] === '\n' || t[j] === '\r' || t[j] === '\t')) j++;
+        const m = /^[-\w.]+(?=\s*:)/.exec(t.slice(j, j + 80));
+        if (m) { o += t.slice(i, j) + '"' + m[0] + '"'; i = j + m[0].length; }
+        continue;
+      }
+      o += c; i++;
+    }
+    return JSON.parse(o);
+  }
+  const SKIP_INVS = /^(soldInvJSON|trashcanInvJSON|docInvJSON)$/;
+  function importSave(text, shapeRows) {
+    const d = parseLenientJson(text);
+    const invs = [];
+    (function walk(v, key) {
+      if (typeof v === 'string') { if (v.startsWith('{"saveItems"') && !SKIP_INVS.test(key)) invs.push(JSON.parse(v)); return; }
+      if (v && typeof v === 'object') for (const k of Object.keys(v)) walk(v[k], k);
+    })(d, '');
+    if (!invs.length) throw new Error('No inventories found. Is this a Probably Stolen save (save_N.es3)?');
+    const effByGame = Object.fromEntries(Object.entries(EFFECTS).map(([k, e]) => [e.game, k]));
+    const machByGame = Object.fromEntries(MACHINES.map(m => [m.game, m]));
+    const out = { machines: [], loose: [], skipped: [] };
+    const cellsOfData = s => { const w = s['<width>k__BackingField'], c = []; s.data.forEach((v, i) => { if (v) c.push([i % w, Math.floor(i / w)]); }); return c; };
+    const cellKey = cells => cells.map(c => c.join(',')).sort().join(';');
+    for (const inv of invs) {
+      const items = inv.saveItems || [];
+      const byUuid = new Map(items.map(it => [it.uuid, it]));
+      const parentOf = new Map();
+      items.forEach(it => (it.childItems || []).forEach(c => parentOf.set(c, it)));
+      const tagOf = it => { const m = {}; (it._keys || []).forEach((k, i) => { m[k] = it._values[i]; }); return m; };
+      const machines = new Map();
+      for (const it of items) {
+        if (!(it._keys || []).includes('MODULE_TAG')) continue;
+        const cat = CAT[it.identifier];
+        if (!cat) { out.skipped.push(it.identifier); continue; }
+        const tg = tagOf(it), int = k => (tg[k] ? tg[k].valueInt | 0 : 0);
+        const effects = ['MODULE_EFFECT1_TAG', 'MODULE_EFFECT2_TAG'].map(k => tg[k] && effByGame[tg[k].internalValueString]).filter(Boolean);
+        // variant: the module's own (unrotated) grid shape
+        let variant = '';
+        if (cat.variants) {
+          const key = cellKey(cellsOfData(it.itemShape));
+          const v = VARIANTS[cat.variants].find(v => { const r = shapeRows(spriteName(cat, v.id)); return r && cellKey(shapeOf(r).cells) === key; });
+          if (v) variant = v.id;
+        }
+        const actual = [int('BONUS_PERCENTAGE_PERFORMANCE_INT'), int('BONUS_PERCENTAGE_EFFICIENCY_INT'), int('BONUS_PERCENTAGE_QUALITY_INT')];
+        const inst = { cat: cat.id, variant, effects, uses: 0 };
+        // finished jobs, worked back from the stats
+        const b0 = baseStats(inst).base;
+        if (effects.includes('LEARNING')) {
+          const lm = baseStats(inst).learnMax;
+          let u = 0;
+          actual.forEach((v, k) => { if (lm[k] != null) u = Math.max(u, v); else if (b0[k] < 0) u = Math.max(u, v - b0[k]); });
+          inst.uses = u;
+        } else if (effects.includes('DEGRADING')) {
+          const k = b0.findIndex(v => v > 0);
+          if (k >= 0) inst.uses = Math.max(0, b0[k] - actual[k]);
+        }
+        if (baseStats(inst).base.some((v, k) => v !== actual[k])) inst.fixedBase = actual;
+        const parent = parentOf.get(it.uuid);
+        const m = parent && machByGame[parent.identifier];
+        if (!m) { out.loose.push(inst); continue; }
+        // where it sits: GridShape.ForwardTransform (flip, then orientation 0-3) of the unrotated shape, plus minX/minY
+        const ms = it.itemModifiedShape || it.itemShape;
+        const w = ms['<width>k__BackingField'], h = ms['<height>k__BackingField'], or = (ms['<orientation>k__BackingField'] | 0) % 4;
+        const cells = cellsOfData(ms).map(([x, y]) => {
+          if (ms['<flipped>k__BackingField']) x = w - 1 - x;
+          return or === 1 ? [y, w - 1 - x] : or === 2 ? [w - 1 - x, h - 1 - y] : or === 3 ? [h - 1 - y, x] : [x, y];
+        });
+        const key = cellKey(cells);
+        const o = orientations(shapeOf(shapeRows(spriteName(cat, variant)) || ['1'])).find(o => cellKey(o.cells) === key);
+        const place = o ? { x: ms['<minX>k__BackingField'] | 0, y: ms['<minY>k__BackingField'] | 0, rot: o.rot, flip: o.flip } : null;
+        const temp = ['TEMP_PERCENTAGE_PERFORMANCE_INT', 'TEMP_PERCENTAGE_EFFICIENCY_INT', 'TEMP_PERCENTAGE_QUALITY_INT'].map(int);
+        if (!machines.has(parent.uuid)) {
+          const ptg = tagOf(parent);
+          machines.set(parent.uuid, { game: m.game, id: m.id, name: m.name, stage: ptg.MODULE_UPGRADE_STAGE_INT ? ptg.MODULE_UPGRADE_STAGE_INT.valueInt | 0 : 0, mods: [] });
+        }
+        machines.get(parent.uuid).mods.push({ inst, place, temp });
+      }
+      // machines with an empty bay still count (their bay size matters)
+      for (const it of items) {
+        const m = machByGame[it.identifier];
+        if (!m || machines.has(it.uuid) || !(it._keys || []).includes('IS_RECEIVING_BONUS_FROM_MODULE_BOOL') && !(it._keys || []).includes('MACHINE')) continue;
+        const ptg = tagOf(it);
+        machines.set(it.uuid, { game: m.game, id: m.id, name: m.name, stage: ptg.MODULE_UPGRADE_STAGE_INT ? ptg.MODULE_UPGRADE_STAGE_INT.valueInt | 0 : 0, mods: [] });
+      }
+      out.machines.push(...machines.values());
+    }
+    return out;
+  }
+
+  return { STATS, EFFECTS, VARIANTS, CATALOG, CAT, BAYS, MACHINES, bayFor, baseStats, learnFull, variantMult, spriteName, allowedSecond, shapeOf, orient, orientations, evaluate, machineOutput, readings, floorFor, usefulCap, mixOf, JOBS, HARVEST, harvestOf, allowedIn, optimize, unlimitedDesigns, POSITIONAL, idiv, mulTrunc, importSave };
 }
 if (typeof module !== 'undefined') module.exports = ENGINE;

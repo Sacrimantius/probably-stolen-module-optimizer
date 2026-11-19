@@ -65,8 +65,8 @@ h2 { flex-wrap: wrap; }
 .board-frame { position: relative; padding: 22px 0 0 22px; }
 .edge-top, .edge-left { position: absolute; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
 .edge-top { top: 2px; left: 22px; }
-.edge-left { left: 0; top: 22px; writing-mode: vertical-rl; transform: rotate(180deg); height: calc(var(--cs) * 5); text-align: center; }
-.board { position: relative; display: grid; grid-template-columns: repeat(7, var(--cs)); grid-template-rows: repeat(5, var(--cs)); background: var(--cell-edge); gap: 0; border: 2px solid var(--cell-edge); border-radius: 4px; touch-action: none; user-select: none; }
+.edge-left { left: 0; top: 22px; writing-mode: vertical-rl; transform: rotate(180deg); height: calc(var(--cs) * var(--bh, 5)); text-align: center; }
+.board { position: relative; display: grid; grid-template-columns: repeat(var(--bw, 7), var(--cs)); grid-template-rows: repeat(var(--bh, 5), var(--cs)); background: var(--cell-edge); gap: 0; border: 2px solid var(--cell-edge); border-radius: 4px; touch-action: none; user-select: none; }
 .board .cell { background: var(--cell); box-shadow: inset 0 0 0 1px var(--cell-edge); }
 .board .cell.blocked { background: repeating-linear-gradient(45deg, var(--blocked) 0 4px, transparent 4px 8px), var(--cell-edge); }
 .piece { position: absolute; cursor: grab; touch-action: none; }
@@ -123,6 +123,9 @@ table.bd tr.tot td { font-weight: 600; border-bottom: 0; }
 .mod .nm { font-weight: 600; font-size: 13px; line-height: 1.2; }
 .mod .meta { font-size: 11px; color: var(--muted); }
 .mod .st { font: 500 12px var(--mono); text-align: right; white-space: nowrap; }
+.qty { font: 700 13px var(--mono); color: var(--accent); }
+.qbtn { display: inline-flex; gap: 3px; margin-top: 4px; }
+.qbtn button { padding: 0 7px; line-height: 18px; font-size: 13px; }
 .inbay { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); font-weight: 700; }
 .form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 12px; }
 .form .full { grid-column: 1 / -1; }
@@ -214,10 +217,11 @@ details summary { cursor: pointer; font-weight: 600; }
               <div class="checks" id="ueffs"></div>
             </details>
           </div>
+          <label class="f" for="scope" id="scopebox" hidden>Modules to use<select id="scope"><option value="here">Loose modules + ones taken from this kind of machine</option><option value="all">All my modules, from any machine</option></select></label>
           <div class="f">Goal, in order of priority</div>
           <div id="goals" class="goals"></div>
           <div class="controls">
-            <label class="f" for="effort">Search effort<select id="effort"><option value="quick">Quick</option><option value="normal" selected>Normal</option><option value="deep">Deep</option></select></label>
+            <label class="f" for="effort">Search effort<select id="effort"><option value="quick">Quick</option><option value="normal" selected>Normal</option><option value="deep">Deep</option><option value="exact">Exact (checks every layout)</option></select></label>
             <button class="primary" id="run">Find best layout</button>
             <button id="undo" disabled>Undo</button>
           </div>
@@ -244,25 +248,31 @@ details summary { cursor: pointer; font-weight: 600; }
       </section>
 
       <section class="card">
-        <details id="artbox">
-          <summary>Use your game's sprites <span class="note" id="artstate"></span></summary>
-          <p class="note">This page ships no game art; modules are drawn as simple shapes. To see the real module icons, load the sprite sheet from your own copy of <i>Probably Stolen</i>. It is read in this browser only and is never uploaded.</p>
-          <ol class="note steps">
-            <li>Export the game's assets with <a href="https://github.com/AssetRipper/AssetRipper" target="_blank" rel="noopener">AssetRipper</a> (File → Open Folder → the game's install folder, then Export → Export Primary Content).</li>
-            <li>In the export, find <code>Assets/Resources/items/items_module.png</code>.</li>
-            <li>Choose that file here.</li>
-          </ol>
-          <div class="btns"><label class="filebtn" for="artfile">Choose items_module.png<input id="artfile" type="file" accept="image/png"></label><button id="artclear">Go back to simple shapes</button></div>
-          <p class="note" id="artmsg"></p>
+        <details id="savebox">
+          <summary>Import modules from your save <span class="note" id="savestate"></span></summary>
+          <p class="note">Reads a save file in this browser only (nothing is uploaded) and replaces <b>My modules</b> with every module in it: the ones installed in your machines, with their finished jobs, and the loose ones in your inventories. Each save slot is one file in <code>%USERPROFILE%\AppData\LocalLow\Questing Goose Studio\Probably Stolen\</code>: <code>save_0.es3</code>, <code>save_1.es3</code> and so on. Paste that folder path into the file picker's address bar.</p>
+          <div class="btns"><label class="filebtn" for="savefile">Choose a save_N.es3 file<input id="savefile" type="file" accept=".es3,.json"></label></div>
+          <div id="savemsg" class="note"></div>
+          <div id="savemachines" class="toplist" style="margin-top:6px"></div>
         </details>
       </section>
 
       <section class="card">
-        <details>
+        <h2>Module pictures <small id="artstate"></small></h2>
+        <div class="seg" role="radiogroup" aria-label="Module pictures">
+          <button type="button" id="art-shapes" role="radio">Simple shapes</button>
+          <button type="button" id="art-wiki" role="radio">Pictures from the wiki</button>
+        </div>
+        <p class="note">This page ships no game art. <b>Pictures from the wiki</b> loads the module pictures from the <a href="https://probablystolen.wiki.gg/wiki/Items/Tags/MODULE" target="_blank" rel="noopener">official Probably Stolen wiki</a> into your browser. The wiki only has the square version of each module, so L, T, C, S and H shapes are pieced together from its squares.</p>
+        <p class="note" id="artmsg"></p>
+      </section>
+
+      <section class="card">
+        <details id="iobox">
           <summary>Back up or share this setup</summary>
           <p class="note">Copy the text to keep it, or paste a setup and load it.</p>
           <textarea id="io" spellcheck="false"></textarea>
-          <div class="btns"><button id="copy">Copy</button><button id="load">Load pasted setup</button><button id="reset">Reset to example</button><span class="note" id="iomsg"></span></div>
+          <div class="btns"><button id="copy">Copy</button><button id="load">Load pasted setup</button><button id="reset">Reset to example</button><button id="clearcache">Forget saved searches</button><span class="note" id="iomsg"></span></div>
         </details>
       </section>
     </div>
@@ -279,25 +289,28 @@ const sgn = v => (v > 0 ? '+' + v : '' + v);
 const cls = v => (v > 0 ? 'pos' : v < 0 ? 'neg' : '');
 
 // ---------- images ----------
-// No game art ships with this page. SPRITES holds only each module's cell shape and its rectangle in the
-// game's items_module.png. Players can load that PNG from their own copy of the game; it stays in their browser.
-const ATLAS_INFO = SPRITES._atlas; delete SPRITES._atlas;
+// No game art ships with this page. SPRITES holds only each module's cell shape. Players can choose to load
+// the module pictures from the official wiki; their browser fetches them from the wiki directly.
 const ART_KEY = 'module-bay-optimizer-art';
-let ATLAS = null;
-function loadAtlas(src, persist) {
-  return new Promise(res => {
+const WIKI = 'https://probablystolen.wiki.gg/images/';
+// wiki file per base sprite (Items/Tags/MODULE); shape variants are not on the wiki
+const WIKI_FILES = { module_red: 'PS-resources-901-module_red.png', module_green: 'PS-resources-277-module_green.png', module_yellow: 'PS-resources-1147-module_yellow.png', module_red_2: 'PS-resources-1160-module_red_2.png', module_green_2: 'PS-resources-488-module_green_2.png', module_yellow_2: 'PS-resources-496-module_yellow_2.png', module_green_3: 'PS-resources-1080-module_green_3.png', module_black_4: 'PS-resources-1420-module_black_4.png', module_black_5: 'PS-resources-947-module_black_5.png', module_white: 'PS-resources-851-module_white.png', module_corrupt: 'PS-resources-909-module_corrupt.png', module_ruined: 'PS-resources-701-module_ruined.png', node_m: 'PS-resources-748-node_m.png', node_s: 'PS-resources-1394-node_s.png', farm_module_l1: 'PS-resources-821-farm_module_l1.png', farm_module_l2: 'PS-resources-843-farm_module_l2.png', farm_module_l4: 'PS-resources-1221-farm_module_l4.png', farm_module_l5: 'PS-resources-1251-farm_module_l5.png', farm_module_l6: 'PS-resources-1055-farm_module_l6.png', farm_module_l7: 'PS-resources-457-farm_module_l7.png', farm_module_l8: 'PS-resources-861-farm_module_l8.png', farm_module5: 'PS-resources-885-farm_module5.png', farm_module6: 'PS-resources-1331-farm_module6.png', long_module1: 'PS-resources-156-long_module1.png', long_module2: 'PS-resources-1227-long_module2.png', long_module3: 'PS-resources-1029-long_module3.png' };
+// sprite name (with shape variant) -> base sprite name
+const BASE_OF = {};
+E.CATALOG.forEach(c => { BASE_OF[c.sprite] = c.sprite; if (c.variants) E.VARIANTS[c.variants].forEach(v => { BASE_OF[c.sprite + v.id] = c.sprite; }); });
+let ART = 'shapes';
+try { if (localStorage.getItem(ART_KEY) === 'wiki') ART = 'wiki'; } catch (e) {}
+const wikiImg = {}; // base sprite -> Image (loaded) | false (failed)
+let wikiFailed = 0;
+function loadWiki() {
+  const names = Object.keys(WIKI_FILES).filter(n => !(n in wikiImg));
+  return Promise.all(names.map(n => new Promise(res => {
     const im = new Image();
-    im.onload = () => {
-      if (im.naturalWidth !== ATLAS_INFO.w || im.naturalHeight !== ATLAS_INFO.h) { res(`That image is ${im.naturalWidth}×${im.naturalHeight}. The module sprite sheet (items_module.png) is ${ATLAS_INFO.w}×${ATLAS_INFO.h}.`); return; }
-      ATLAS = im;
-      if (persist) { try { localStorage.setItem(ART_KEY, src); } catch (e) {} }
-      res('');
-    };
-    im.onerror = () => res('That file could not be read as an image.');
-    im.src = src;
-  });
+    im.onload = () => { wikiImg[n] = im; res(); };
+    im.onerror = () => { wikiImg[n] = false; wikiFailed++; res(); };
+    im.src = WIKI + WIKI_FILES[n];
+  })));
 }
-const imgReady = (async () => { try { const d = localStorage.getItem(ART_KEY); if (d) await loadAtlas(d, false); } catch (e) {} })();
 // Simple pixel shapes when no sprites are loaded, coloured by the module family
 const FAMILY = [[/^module_red/, '#c8463d'], [/^module_green/, '#4a9a45'], [/^module_yellow/, '#d4a72c'], [/^module_black/, '#5a4785'], [/^module_white/, '#c3cad0'], [/^module_(ruined|corrupt)/, '#7d6f66'], [/^node/, '#3f7fbf'], [/^(farm|long)_module/, '#2f9a8f'], [/./, '#8a5fbf']];
 function drawShape(c, sprite) {
@@ -327,8 +340,13 @@ function drawPiece(canvas, sprite, rot, flip) {
   canvas.width = W; canvas.height = H;
   const c = canvas.getContext('2d'); c.imageSmoothingEnabled = false;
   c.clearRect(0, 0, W, H); c.save(); c.translate(W / 2, H / 2); c.rotate(rot * Math.PI / 2); c.scale(flip ? -1 : 1, 1);
-  if (ATLAS) { const [rx, ry, rw, rh] = sp.rect; c.drawImage(ATLAS, rx, ry, rw, rh, -w / 2, -h / 2, w, h); }
-  else { c.translate(-w / 2, -h / 2); drawShape(c, sprite); }
+  c.translate(-w / 2, -h / 2);
+  const im = ART === 'wiki' && wikiImg[BASE_OF[sprite] || sprite];
+  if (im) {
+    // piece the shape together from the base picture's 16 px cells
+    const bw = Math.max(1, Math.round(im.naturalWidth / 16)), bh = Math.max(1, Math.round(im.naturalHeight / 16));
+    sh.forEach((row, y) => [...row].forEach((ch, x) => { if (ch === '1') c.drawImage(im, (x % bw) * 16, (y % bh) * 16, 16, 16, x * 16, y * 16, 16, 16); }));
+  } else drawShape(c, sprite);
   c.restore();
 }
 
@@ -367,6 +385,8 @@ function migrate(s) {
   s.umax = [0, 1, 2].includes(s.umax) ? s.umax : 2;
   s.c = Array.isArray(s.c) ? s.c : [null, null, null];
   s.tops = s.tops && typeof s.tops === 'object' ? s.tops : { mine: [], unlimited: [] };
+  s.scope = s.scope === 'all' ? 'all' : 'here';
+  s.imported = s.imported && Array.isArray(s.imported.machines) ? s.imported : null;
   return s;
 }
 let S;
@@ -383,7 +403,8 @@ function setMode(mode) {
 }
 
 const machine = () => E.MACHINES.find(m => m.id === S.machine) || E.MACHINES[0];
-const mask = () => E.BAYS[machine().noExpansion ? 0 : S.bay].mask;
+const bay = () => E.bayFor(machine(), S.bay);
+const mask = () => bay().mask;
 const cat = mod => E.CAT[mod.cat];
 const spriteOf = mod => E.spriteName(cat(mod), mod.variant);
 const shapeOf = mod => E.shapeOf(SPRITES[spriteOf(mod)].shape);
@@ -397,10 +418,10 @@ function placedCells(mod) {
   return o.cells.map(([x, y]) => [x + p.x, y + p.y]);
 }
 function fits(mod, p, ignoreUid) {
-  const o = E.orient(shapeOf(mod), p.rot, p.flip), m = mask();
+  const o = E.orient(shapeOf(mod), p.rot, p.flip), B = bay(), m = B.mask, W = B.W;
   const taken = new Set();
-  S.mods.forEach(o2 => { if (o2.uid === ignoreUid || o2.uid === mod.uid) return; const c = placedCells(o2); if (c) c.forEach(([x, y]) => taken.add(y * 7 + x)); });
-  return o.cells.every(([cx, cy]) => { const x = cx + p.x, y = cy + p.y; return x >= 0 && y >= 0 && x < 7 && y < 5 && m[y * 7 + x] === '0' && !taken.has(y * 7 + x); });
+  S.mods.forEach(o2 => { if (o2.uid === ignoreUid || o2.uid === mod.uid) return; const c = placedCells(o2); if (c) c.forEach(([x, y]) => taken.add(y * W + x)); });
+  return o.cells.every(([cx, cy]) => { const x = cx + p.x, y = cy + p.y; return x >= 0 && y >= 0 && x < W && y < B.H && m[y * W + x] === '0' && !taken.has(y * W + x); });
 }
 function sanitize() {
   // drop placements that no longer fit (bay or machine changed)
@@ -413,7 +434,7 @@ const hasBlast = () => S.mods.some(m => m.cat === 'furnace_module_blast' && S.pl
 function compute() {
   const placed = S.mods.filter(m => S.place[m.uid]);
   const items = placed.map(m => ({ base: baseOf(m), node: !!cat(m).node, effects: fxOf(m), cells: placedCells(m) }));
-  const ev = E.evaluate(items, 7, 5);
+  const ev = E.evaluate(items, bay().W, bay().H);
   const byUid = {}; placed.forEach((m, i) => { byUid[m.uid] = { ...ev.items[i], neighbors: ev.items[i].neighbors.map(j => placed[j].uid) }; });
   return { totals: ev.totals, byUid, out: E.machineOutput(machine(), ev.totals, { blast: hasBlast() }), base: E.machineOutput(machine(), [0, 0, 0]) };
 }
@@ -525,7 +546,8 @@ function transformPlaced(mod, fn) {
   flash('No room to turn it there.');
 }
 function autoPlace(mod) {
-  for (const o of E.orientations(shapeOf(mod))) for (let y = 0; y < 5; y++) for (let x = 0; x < 7; x++) {
+  const B = bay();
+  for (const o of E.orientations(shapeOf(mod))) for (let y = 0; y < B.H; y++) for (let x = 0; x < B.W; x++) {
     const p = { x, y, rot: o.rot, flip: o.flip };
     if (fits(mod, p)) { S.place[mod.uid] = p; render(); return; }
   }
@@ -560,7 +582,7 @@ function renderReadouts(R) {
   if (o.quality != null) outs.push(`<div class="out"><div class="k">Quality bonus</div><div class="val ${cls(o.quality)}">${sgn(o.quality)}</div><div class="was">ratio 1/${m.qr}</div></div>`);
   if (o.purity != null) {
     // IngotPurityHelper: Low (6) + ore share (all ore 2, all scrap 0) + this bonus, clamped to Very Low..Perfect
-    const PN = { 5: 'Very Low', 6: 'Low', 7: 'Fair', 8: 'High', 9: 'Very High', 10: 'Perfect' };
+    const PN = { 5: 'Very Low Purity', 6: 'Low Purity', 7: 'Fair Purity', 8: 'High Purity', 9: 'Very High Purity', 10: 'Perfect Purity' };
     const pn = share => PN[Math.max(5, Math.min(10, 6 + share + o.purity))];
     outs.push(`<div class="out"><div class="k">Ingot purity</div><div class="val ${cls(o.purity)}">${sgn(o.purity)} step${Math.abs(o.purity) === 1 ? '' : 's'}</div><div class="was">quality ÷ 100${hasBlast() ? ', −1 for Blast' : ''}</div><div class="was">all ore: <b>${pn(2)}</b> · all scrap: <b>${pn(0)}</b></div></div>`);
   }
@@ -586,7 +608,7 @@ function renderInspector(R) {
   }
   const c = cat(mod), bs = E.baseStats(mod), r = R.byUid[mod.uid], fx = fxOf(mod);
   const v = c.variants ? E.VARIANTS[c.variants].find(x => x.id === (mod.variant || '')) : null;
-  el.innerHTML = `<h2>${c.name} <small>${S.place[mod.uid] ? 'in the bay' : 'not installed'}</small></h2>
+  el.innerHTML = `<div class="btns" style="margin:0 0 8px"><button data-a="back" title="Esc">← Back to bay breakdown</button></div><h2>${c.name} <small>${S.place[mod.uid] ? 'in the bay' : 'not installed'}</small></h2>
     <div class="insp"><div class="thumb"><canvas id="ithumb"></canvas></div><div>
       <div class="chips">${v ? `<span class="chip">${v.name} shape</span>` : ''}${fx.map(f => `<span class="chip fx">${E.EFFECTS[f].name}</span>`).join('')}${mod.required ? '<span class="chip req">Must use</span>' : ''}${mod.locked ? '<span class="chip lock">Locked in place</span>' : ''}${!allowed(mod) ? `<span class="chip warn">Not accepted by ${machine().name}</span>` : ''}${c.extra ? `<span class="chip">${c.extra}</span>` : ''}</div>
       ${fx.map(f => `<p class="fxdesc"><b>${E.EFFECTS[f].name}.</b> ${E.EFFECTS[f].desc}</p>`).join('')}
@@ -595,7 +617,7 @@ function renderInspector(R) {
         <tr><td>Base on this module</td>${statCells(bs.base)}</tr>
         ${r ? r.lines.map(l => `<tr><td>${l.label}</td>${statCells(l.d)}</tr>`).join('') + `<tr class="tot"><td>Gives the bay</td>${statCells(r.temp)}</tr>` : ''}
       </table></div>
-      ${bs.learnMax ? `<p class="fxdesc">Fully trained at ${bs.learnMax.map((x, k) => x != null ? SN[k] + ' ' + x : '').filter(Boolean).join(', ')} finished jobs.</p>` : ''}
+      ${bs.learnMax ? `<p class="fxdesc">Fully trained after ${E.learnFull(mod)} finished jobs: ${bs.learnMax.map((x, k) => x != null ? SN[k] + ' ' + x : '').filter(Boolean).join(', ')}, negative stats back to 0. Now at ${mod.uses || 0}.</p>` : ''}
     </div></div>
     <div class="btns">
       ${S.place[mod.uid] ? '<button data-a="remove">Take out</button>' : `<button data-a="place" ${allowed(mod) ? '' : 'disabled'}>Put in bay</button>`}
@@ -608,7 +630,8 @@ function renderInspector(R) {
   $('ithumb').style.width = '64px'; $('ithumb').style.height = 'auto';
   el.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => {
     const a = b.dataset.a;
-    if (a === 'remove') { delete S.place[mod.uid]; render(); }
+    if (a === 'back') { sel = null; render(); }
+    else if (a === 'remove') { delete S.place[mod.uid]; render(); }
     else if (a === 'place') autoPlace(mod);
     else if (a === 'rot') rotateSel();
     else if (a === 'flip') flipSel();
@@ -621,6 +644,14 @@ function renderInspector(R) {
 }
 
 // ---------- locker ----------
+// Identical modules (same type, shape, effects, finished jobs, origin) are shown as one stack with a count.
+const coreSig = m => JSON.stringify([m.cat, m.variant || '', fxOf(m), m.uses | 0, m.fixedBase || null]);
+const stackSig = m => coreSig(m) + '|' + !!m.required + '|' + (m.from || '');
+function stacks() {
+  const map = new Map();
+  for (const m of S.mods) { const k = stackSig(m); if (!map.has(k)) map.set(k, []); map.get(k).push(m); }
+  return [...map.values()];
+}
 function renderLocker() {
   const unl = S.mode === 'unlimited';
   $('lockertitle').textContent = unl ? 'Unlimited plan' : 'My modules';
@@ -634,22 +665,32 @@ function renderLocker() {
     });
     $('shopping').innerHTML = `<div class="shop"><b>Shopping list</b> <span class="note">· modules to look for to build this bay</span>${Object.keys(counts).length ? `<ul>${Object.entries(counts).map(([k, n]) => `<li>${n} × ${k}</li>`).join('')}</ul>` : '<p class="note" style="margin:4px 0 0">Empty. Press <b>Find best layout</b> to build a plan. Add modules below and mark them Must use or Lock to build around them; everything else is replaced on each run.</p>'}</div>`;
   } else $('shopping').innerHTML = '';
-  $('banner').innerHTML = S.example && !unl ? `<div class="banner"><span>These are example modules. Delete them and add the ones you own.</span><button id="clearex">Clear examples</button></div>` : '';
+  $('banner').innerHTML = S.example && !unl ? `<div class="banner"><span>These are example modules. Delete them and add the ones you own, or import them from your save.</span><button id="clearex">Clear examples</button></div>` : '';
   if (S.example && !unl) $('clearex').onclick = () => { S.mods = []; S.place = {}; S.example = false; sel = null; render(); };
   const L = $('locker'); L.innerHTML = '';
-  if (!S.mods.length) L.innerHTML = '<p class="note">No modules yet. Add one with the form below.</p>';
-  for (const mod of S.mods) {
+  if (!S.mods.length) L.innerHTML = '<p class="note">No modules yet. Add one with the form below, or import them from your save.</p>';
+  for (const st of stacks()) {
+    const inBay = st.filter(m => S.place[m.uid]).length;
+    // the member this row stands for: the selected one, else one not in the bay, else the first
+    const mod = st.find(m => m.uid === sel) || st.find(m => !S.place[m.uid]) || st[0];
     const c = cat(mod), b = baseOf(mod), fx = fxOf(mod);
     const v = c.variants ? E.VARIANTS[c.variants].find(x => x.id === (mod.variant || '')) : null;
     const row = document.createElement('div');
-    row.className = 'mod' + (mod.uid === sel ? ' sel' : '') + (allowed(mod) ? '' : ' off');
-    row.innerHTML = `<div class="thumb"><canvas></canvas></div><div style="min-width:0"><div class="nm">${c.name}${mod.required ? ' <span class="chip req">Must use</span>' : ''}${mod.locked ? ' <span class="chip lock">Locked</span>' : ''}</div><div class="meta">${[v && v.id ? v.name.replace(/ \(.*/, '') + ' shape' : '', ...fx.map(f => E.EFFECTS[f].name)].filter(Boolean).join(' · ') || 'No effects'}${allowed(mod) ? '' : ' · not for this machine'}</div></div>
-      <div class="st">${b.map((x, k) => x ? `<span class="${'PEQ'[k]}">${'PEQ'[k]}${sgn(x)}</span>` : '').filter(Boolean).join(' ') || '<span class="note">no stats</span>'}${S.place[mod.uid] ? '<div class="inbay">In bay</div>' : ''}</div>`;
+    row.className = 'mod' + (st.some(m => m.uid === sel) ? ' sel' : '') + (allowed(mod) ? '' : ' off');
+    const learn = fx.includes('LEARNING') ? ` · ${mod.uses | 0}/${E.learnFull(mod)} jobs` : fx.includes('DEGRADING') ? ` · ${mod.uses | 0} jobs` : '';
+    row.innerHTML = `<div class="thumb"><canvas></canvas></div><div style="min-width:0"><div class="nm">${st.length > 1 ? `<span class="qty">${st.length}×</span> ` : ''}${c.name}${mod.required ? ' <span class="chip req">Must use</span>' : ''}${st.some(m => m.locked) ? ' <span class="chip lock">Locked</span>' : ''}</div><div class="meta">${[v && v.id ? v.name.replace(/ \(.*/, '') + ' shape' : '', ...fx.map(f => E.EFFECTS[f].name)].filter(Boolean).join(' · ') || 'No effects'}${learn}${mod.from ? ' · from ' + mod.from : ''}${allowed(mod) ? '' : ' · not for this machine'}</div></div>
+      <div class="st">${b.map((x, k) => x ? `<span class="${'PEQ'[k]}">${'PEQ'[k]}${sgn(x)}</span>` : '').filter(Boolean).join(' ') || '<span class="note">no stats</span>'}${inBay ? `<div class="inbay">${st.length > 1 ? inBay + ' in bay' : 'In bay'}</div>` : ''}<div class="qbtn"><button data-q="-" title="One fewer" aria-label="One fewer">−</button><button data-q="+" title="One more" aria-label="One more">+</button></div></div>`;
     const cv = row.querySelector('canvas'); drawPiece(cv, spriteOf(mod), mod.rot || 0, mod.flip || 0);
     const sh = SPRITES[spriteOf(mod)].shape; const sc = Math.min(44 / (sh[0].length * 16), 44 / (sh.length * 16), 1.4);
     cv.style.width = sh[0].length * 16 * sc * ((mod.rot || 0) % 2 ? sh.length / sh[0].length : 1) + 'px';
-    row.querySelector('.thumb').addEventListener('pointerdown', ev => startDrag(ev, mod, null, false));
-    row.addEventListener('click', ev => { if (!ev.target.closest('.thumb')) select(mod.uid); });
+    row.querySelector('.thumb').addEventListener('pointerdown', ev => startDrag(ev, st.find(m => !S.place[m.uid]) || mod, null, false));
+    row.querySelector('[data-q="+"]').onclick = ev => { ev.stopPropagation(); const n = { ...mod, uid: newUid(), effects: [...fxOf(mod)], locked: false }; S.mods.splice(S.mods.indexOf(st[st.length - 1]) + 1, 0, n); render(); };
+    row.querySelector('[data-q="-"]').onclick = ev => {
+      ev.stopPropagation();
+      const gone = [...st].reverse().find(m => !S.place[m.uid]) || st[st.length - 1];
+      S.mods = S.mods.filter(m => m !== gone); delete S.place[gone.uid]; if (sel === gone.uid) sel = null; render();
+    };
+    row.addEventListener('click', ev => { if (!ev.target.closest('.thumb') && !ev.target.closest('.qbtn')) select(mod.uid); });
     L.appendChild(row);
   }
 }
@@ -679,7 +720,7 @@ function refreshForm(keep) {
   $('fuses').disabled = !usesOn;
   const bs = E.baseStats(m);
   $('fprev').innerHTML = 'Base stats: ' + bs.base.map((x, k) => `<span class="${'PEQ'[k]}">${SN[k]} ${sgn(x)}%</span>`).join(' · ') +
-    (bs.learnMax ? `<br><span class="note">Learning Algorithm: positive stats grow by 1 per finished job up to ${bs.learnMax.filter(x => x != null).join('/')}.</span>` : '') +
+    (bs.learnMax ? `<br><span class="note">Learning Algorithm: positive stats grow by 1 per finished job up to ${bs.learnMax.filter(x => x != null).join('/')}; negative stats climb back to 0. Fully trained after ${E.learnFull(m)} jobs.</span>` : '') +
     (m.effects.includes('DEGRADING') ? '<br><span class="note">Degrading: each finished job removes 1 from each positive stat.</span>' : '') +
     (c.extra ? `<br><span class="note">${c.extra}</span>` : '');
 }
@@ -700,7 +741,7 @@ $('addform').addEventListener('submit', ev => {
   const m = formMod();
   if (editing) {
     const mod = S.mods.find(x => x.uid === editing);
-    if (mod) { const shapeChanged = mod.cat !== m.cat || (mod.variant || '') !== m.variant; Object.assign(mod, m); if (shapeChanged) delete S.place[mod.uid]; sel = mod.uid; }
+    if (mod) { const shapeChanged = mod.cat !== m.cat || (mod.variant || '') !== m.variant; Object.assign(mod, m); delete mod.fixedBase; if (shapeChanged) delete S.place[mod.uid]; sel = mod.uid; }
     endEdit();
   } else {
     const n = Math.max(1, Math.min(20, +$('fqty').value || 1));
@@ -713,7 +754,7 @@ $('addform').addEventListener('submit', ev => {
 // ---------- goal: one priority list of machine readings ----------
 // Each row: { r: reading id, mode: 'best' | 'target', target: reading value (internal, higher = better), job: job size }
 const DEFAULT_GOALS = {
-  hydroponic: [['cycles', 23], ['qbonus'], ['power']],
+  hydroponic: [['cycles', 23], ['harvest', 8], ['power']],
   dna: [['qbonus'], ['cycles', 28], ['power']],
   printer: [['cycles', 50], ['qbonus'], ['power']],
   winerack: [['aging'], ['power']],
@@ -738,7 +779,6 @@ const fmtTarget = (rd, v) => (rd.low ? -v : v);
 function renderGoals() {
   const m = machine(), rds = E.readings(m, ctxNow()), rows = goalsFor(m);
   const totals = compute().totals;
-  const jobs = E.JOBS[m.id] || [];
   $('goals').innerHTML = rows.map((g, i) => {
     const rd = rds.find(r => r.id === g.r) || rds[0];
     const o = { job: g.job || 100 };
@@ -751,10 +791,11 @@ function renderGoals() {
     let job = '';
     if (rd.job) {
       // named jobs from the game, sorted by size, plus a custom size
+      const jobs = rd.jobs || [];
       const sorted = jobs.slice().sort((a, b) => a[0] - b[0] || a[1].localeCompare(b[1]));
       const custom = g.jobCustom || !jobs.some(j => j[0] === g.job);
       job = `<select data-i="${i}" data-f="jobsel" aria-label="Job">${sorted.map(([v, l]) => `<option value="${v}" ${!custom && v === g.job ? 'selected' : ''}>${l} (${v})</option>`).join('')}<option value="custom" ${custom ? 'selected' : ''}>Other size…</option></select>` +
-        (custom ? `<label class="jobl">job size <input data-i="${i}" data-f="job" type="number" min="1" value="${g.job || 100}" style="width:70px"></label>` : '');
+        (custom ? `<label class="jobl">${rd.jobLabel || 'size'} <input data-i="${i}" data-f="job" type="number" min="1" value="${g.job || 100}" style="width:70px"></label>` : '');
     }
     return `<div class="goalrow"><span class="rk">${i + 1}</span>
       <div class="gmain">
@@ -770,7 +811,7 @@ function renderGoals() {
 $('goals').addEventListener('change', e => {
   const el = e.target, i = +el.dataset.i, f = el.dataset.f; if (!f) return;
   const m = machine(), g = goalsFor(m)[i];
-  if (f === 'r') { g.r = el.value; g.mode = 'best'; g.target = null; const rd = readingOf(m, g); g.job = rd.job ? (g.job || (E.JOBS[m.id] || [[100]])[0][0]) : null; }
+  if (f === 'r') { g.r = el.value; g.mode = 'best'; g.target = null; const rd = readingOf(m, g); g.job = rd.job ? ((rd.jobs && rd.jobs[0] && rd.jobs[0][0]) || 100) : null; g.jobCustom = false; }
   else if (f === 'mode') {
     g.mode = el.value;
     const rd = readingOf(m, g);
@@ -786,7 +827,7 @@ $('goals').addEventListener('click', e => {
   const m = machine(), rows = goalsFor(m), i = +e.target.dataset.i;
   if (a === 'del') { rows.splice(i, 1); if (!rows.length) S.goals[m.id] = defaultGoals(m); }
   else if (a === 'up') rows.splice(i - 1, 0, rows.splice(i, 1)[0]);
-  else if (a === 'add') { const used = new Set(rows.map(g => g.r)); const rd = E.readings(m, ctxNow()).find(r => !used.has(r.id)); rows.push({ r: rd.id, mode: 'best', target: null, job: rd.job ? 100 : null }); }
+  else if (a === 'add') { const used = new Set(rows.map(g => g.r)); const rd = E.readings(m, ctxNow()).find(r => !used.has(r.id)); rows.push({ r: rd.id, mode: 'best', target: null, job: rd.job ? ((rd.jobs && rd.jobs[0] && rd.jobs[0][0]) || 100) : null }); }
   else if (a === 'reset') S.goals[m.id] = defaultGoals(m);
   save(); renderGoals();
 });
@@ -797,52 +838,83 @@ let worker = null;
 try { worker = new Worker(URL.createObjectURL(new Blob([`const E=(${ENGINE.toString()})();onmessage=e=>{const r=E.optimize(e.data,p=>postMessage({progress:p}));postMessage({done:r});};`], { type: 'text/javascript' }))); } catch (e) { worker = null; }
 const EFFORT = { quick: [6, 8000], normal: [14, 20000], deep: [32, 50000] };
 const EFFORT_UNL = { quick: [8, 25000], normal: [16, 60000], deep: [40, 150000] };
-function designOf(m, count) {
+const EXACT_MS = 20000;
+function designOf(m, count, min) {
   const p = S.place[m.uid];
-  return { base: baseOf(m), node: !!cat(m).node, effects: fxOf(m), shape: shapeOf(m), count, min: m.required ? 1 : 0, fixed: m.locked && p ? { rot: p.rot, flip: p.flip, x: p.x, y: p.y } : null };
+  return { base: baseOf(m), node: !!cat(m).node, effects: fxOf(m), shape: shapeOf(m), count, min: min != null ? min : (m.required ? 1 : 0), fixed: m.locked && p ? { rot: p.rot, flip: p.flip, x: p.x, y: p.y } : null };
+}
+// Which owned modules a search may use: all, or (after a save import) loose ones plus those from machines of this kind
+const scopeOk = m => S.mode !== 'mine' || S.scope !== 'here' || !m.fromId || m.fromId === machine().id;
+// ---------- search cache: identical searches are answered from earlier results ----------
+const CACHE_KEY = 'module-bay-optimizer-cache';
+const RANK = { quick: 1, normal: 2, deep: 3, exact: 4 };
+function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + '.' + s.length.toString(36); }
+const jobKey = job => hashStr(JSON.stringify({ ...job, seed: 0, init: null, restarts: 0, iters: 0, exactMs: 0 }));
+function cacheRead() { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}') || {}; } catch (e) { return {}; } }
+function cacheGet(job, rank) { const h = cacheRead()[jobKey(job)]; return h && h.rank >= rank ? h.r : null; }
+function cachePut(job, rank, r) {
+  const c = cacheRead(), k = jobKey(job);
+  if (c[k] && c[k].rank > rank) return;
+  c[k] = { rank: r.proven ? 10 : rank, t: Date.now(), r: { top: r.top, proven: r.proven } };
+  const keys = Object.keys(c).sort((a, b) => c[b].t - c[a].t);
+  keys.slice(40).forEach(x => delete c[x]);
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(c)); } catch (e) {}
 }
 function runOptimizer(opts = {}) {
   const unl = S.mode === 'unlimited';
   const mach = machine();
-  // My modules: each owned module once. Unlimited: keep locked / must-use modules, then any number of each allowed design.
-  const pool = S.mods.filter(m => allowed(m) && (!unl || m.locked || m.required));
+  // My modules: owned modules, identical ones stacked into one design with a count. Unlimited: keep
+  // locked / must-use modules, then any number of each allowed design. A locked module is its own design.
+  const poolMods = S.mods.filter(m => allowed(m) && (!unl || m.locked || m.required) && (scopeOk(m) || (m.locked && S.place[m.uid])));
+  const groups = [], gmap = new Map();
+  for (const m of poolMods) {
+    if (m.locked && S.place[m.uid]) { groups.push([m]); continue; }
+    const k = coreSig(m);
+    if (!gmap.has(k)) { gmap.set(k, []); groups.push(gmap.get(k)); }
+    gmap.get(k).push(m);
+  }
   const gen = unl ? E.unlimitedDesigns(S.ucats.filter(id => E.CAT[id] && E.allowedIn(mach, E.CAT[id])), S.ueffs, S.umax) : [];
-  if (!pool.length && !gen.length) { $('result').innerHTML = `<span class="neg">${unl ? 'Tick at least one module type above.' : 'None of your modules fit this machine. Add some first.'}</span>`; return; }
-  const [restarts, iters] = (unl ? EFFORT_UNL : EFFORT)[$('effort').value];
-  const designs = [...pool.map(m => designOf(m, 1)), ...gen.map(g => designOf(g, Infinity))];
+  if (!poolMods.length && !gen.length) { $('result').innerHTML = `<span class="neg">${unl ? 'Tick at least one module type above.' : 'None of your modules fit this machine. Add some first.'}</span>`; return; }
+  const effort = $('effort').value;
+  const [restarts, iters] = (unl ? EFFORT_UNL : EFFORT)[effort === 'exact' ? 'normal' : effort];
+  const exactMs = effort === 'exact' ? EXACT_MS : 0;
+  const designs = [...groups.map(g => designOf(g[0], g.length, g.filter(m => m.required).length)), ...gen.map(g => designOf(g, Infinity))];
   // the Blast module's purity penalty applies when the plan keeps one
-  const ctx = { blast: pool.some(m => m.cat === 'furnace_module_blast' && (m.required || m.locked || !unl)) };
+  const ctx = { blast: poolMods.some(m => m.cat === 'furnace_module_blast' && (m.required || m.locked || !unl)) };
   const rds = E.readings(mach, ctx);
   const goals = goalsFor(mach).map(g => ({ ...g, rd: rds.find(r => r.id === g.r) })).filter(g => g.rd);
-  const base = { mask: mask(), W: 7, H: 5, designs, topN: 5 };
+  const B = bay();
+  const base = { mask: B.mask, W: B.W, H: B.H, designs, topN: 5 };
   const seed0 = (Math.random() * 1e9) | 0;
   $('run').disabled = true; $('progbar').style.width = '0%';
-  $('result').innerHTML = `<span class="note">Searching${unl ? ` ${gen.length} module designs` : ''}, ${goals.length} priorit${goals.length === 1 ? 'y' : 'ies'}…</span>`;
+  $('result').innerHTML = `<span class="note">Searching${unl ? ` ${gen.length} module designs` : ''}, ${goals.length} priorit${goals.length === 1 ? 'y' : 'ies'}${exactMs ? ', checking every layout (up to ' + EXACT_MS / 1000 + ' s each)' : ''}…</span>`;
 
   // turn an optimizer layout into a saved snapshot of this workspace
   const snapshot = l => {
     const mods = unl ? S.mods.filter(m => m.locked || m.required).map(m => ({ ...m, effects: [...(m.effects || [])] })) : null;
-    const place = {};
+    const place = {}, taken = groups.map(() => 0);
     l.placements.forEach(p => {
       let uid;
-      if (p.design < pool.length) uid = pool[p.design].uid;
-      else { const g = gen[p.design - pool.length]; const mod = { uid: newUid(), cat: g.cat, variant: g.variant, effects: [...g.effects], uses: g.uses || 0 }; mods.push(mod); uid = mod.uid; }
+      if (p.design < groups.length) uid = groups[p.design][taken[p.design]++].uid;
+      else { const g = gen[p.design - groups.length]; const mod = { uid: newUid(), cat: g.cat, variant: g.variant, effects: [...g.effects], uses: g.uses || 0 }; mods.push(mod); uid = mod.uid; }
       place[uid] = { rot: p.rot, flip: p.flip, x: p.x, y: p.y };
     });
     return { mods, place, totals: l.totals, count: l.placements.length };
   };
   // Work down the priority list. Each pass maximises one reading (stopping where it can no longer improve,
   // or at the target), then locks the level it reached as a floor for the following passes.
-  const floors = [];
-  const report = [];
-  let last = null;
+  const floors = [], report = [], proofs = [];
+  let last = null, fromCache = 0;
   const pass = i => {
     if (i >= goals.length) return Promise.resolve();
     const g = goals[i], rd = g.rd, o = { job: g.job || 100 };
     const cap = g.mode === 'target' && g.target != null ? E.floorFor(rd, g.target, o) : E.usefulCap(rd, o);
     const terms = [...floors.map(f => ({ w: f.w, scale: 0, cap: null, min: f.min })), { w: rd.w, scale: 1, cap, min: null }];
-    const job = { ...base, terms, restarts, iters, seed: seed0 + i, init: last ? last.top[0].placements : null };
-    return runJob(job, p => { $('progbar').style.width = ((i + p) / goals.length) * 100 + '%'; }).then(r => {
+    const job = { ...base, terms, restarts, iters, exactMs, seed: seed0 + i, init: last ? last.top[0].placements : null };
+    const hit = opts.fresh ? null : cacheGet(job, RANK[effort]);
+    const run = hit ? (fromCache++, Promise.resolve(hit)) : runJob(job, p => { $('progbar').style.width = ((i + p) / goals.length) * 100 + '%'; }).then(r => { cachePut(job, RANK[effort], r); return r; });
+    return run.then(r => {
+      proofs.push(r.proven);
       // keep layouts that still meet every earlier floor
       const ok = l => floors.every(f => E.mixOf(f.w, l.totals) >= f.min - 1e-9);
       const top = r.top.filter(ok);
@@ -864,12 +936,20 @@ function runOptimizer(opts = {}) {
     for (const g of goals) {
       const o = { job: g.job || 100 }, v = g.rd.value(t, o);
       const hit = g.mode !== 'target' || g.target == null || v >= g.target;
-      report.push(`<li>${g.rd.label}${g.rd.job ? ` (job ${o.job})` : ''}: <b>${g.rd.show(v)}</b>${g.mode === 'target' && g.target != null ? (hit ? ' <span class="pos">target met</span>' : ` <span class="neg">short of ${g.rd.show(g.target)}</span>`) : ''}</li>`);
+      report.push(`<li>${g.rd.label}${g.rd.job ? ` (${g.rd.jobLabel || 'size'} ${o.job})` : ''}: <b>${g.rd.show(v)}</b>${g.mode === 'target' && g.target != null ? (hit ? ' <span class="pos">target met</span>' : ` <span class="neg">short of ${g.rd.show(g.target)}</span>`) : ''}</li>`);
     }
-    const missReq = pool.filter(m => m.required && !S.place[m.uid]).length;
-    $('result').innerHTML = `Best found using ${list[0].placements.length}${unl ? '' : ' of ' + pool.length} modules <span class="mono">(<span class="P">P ${sgn(t[0])}</span> <span class="E">E ${sgn(t[1])}</span> <span class="Q">Q ${sgn(t[2])}</span>)</span>:<ol class="glist">${report.join('')}</ol>` +
+    const missReq = poolMods.filter(m => m.required && !S.place[m.uid]).length;
+    let proofNote = '';
+    if (exactMs || proofs.some(p => p != null)) {
+      const done = proofs.filter(p => p === true).length;
+      proofNote = done === goals.length ? '<p class="pos" style="margin:6px 0 0"><b>Proven best:</b> every possible layout was checked, nothing scores higher on these priorities.</p>'
+        : `<p class="note" style="margin:6px 0 0">Not proven: the full check ran out of time on ${goals.length - done} of ${goals.length} priorit${goals.length === 1 ? 'y' : 'ies'}. This is the best layout found so far.</p>`;
+    }
+    $('result').innerHTML = `Best found using ${list[0].placements.length}${unl ? '' : ' of ' + poolMods.length} modules <span class="mono">(<span class="P">P ${sgn(t[0])}</span> <span class="E">E ${sgn(t[1])}</span> <span class="Q">Q ${sgn(t[2])}</span>)</span>:<ol class="glist">${report.join('')}</ol>` + proofNote +
       (missReq ? ` <span class="neg">${missReq} "Must use" module${missReq > 1 ? 's' : ''} did not fit.</span>` : '') +
+      (fromCache ? ` <span class="note">Answered from an earlier identical search. <a href="#" id="fresh">Search again</a></span>` : '') +
       (opts.silent ? ' <span class="note">(example layout)</span>' : '');
+    if (fromCache) $('fresh').onclick = e => { e.preventDefault(); runOptimizer({ fresh: true }); };
     sel = null; render();
   });
 }
@@ -907,6 +987,8 @@ function renderSource() {
   $('src-mine').setAttribute('aria-checked', !unl); $('src-unl').setAttribute('aria-checked', unl);
   $('unlopts').hidden = !unl;
   $('umax').value = String(S.umax);
+  $('scopebox').hidden = unl || !S.mods.some(m => m.fromId);
+  $('scope').value = S.scope;
   $('srcnote').textContent = unl ? 'any number of each allowed module' : 'uses every module you own that fits this machine';
   const m = machine();
   $('ucats').innerHTML = E.CATALOG.filter(c => E.allowedIn(m, c) && !['glitched_module', 'system_module_ruined', 'blank_module', 'system_module_corrupt'].includes(c.id))
@@ -917,12 +999,13 @@ function renderSource() {
   $('ueffs').querySelectorAll('input').forEach(i => i.onchange = () => { S.ueffs = [...$('ueffs').querySelectorAll('input:checked')].map(x => x.dataset.e); save(); });
 }
 $('umax').onchange = e => { S.umax = +e.target.value; save(); };
+$('scope').onchange = e => { S.scope = e.target.value; save(); };
 $('src-mine').onclick = () => setMode('mine');
 $('src-unl').onclick = () => setMode('unlimited');
 
 // ---------- import / export ----------
 function exportText() { save(); const { example: _, mods: __, place: ___, ...rest } = S; return JSON.stringify(rest); }
-document.querySelector('details').addEventListener('toggle', e => { if (e.target.open) $('io').value = exportText(); });
+$('iobox').addEventListener('toggle', e => { if (e.target.open) $('io').value = exportText(); });
 $('copy').onclick = () => { const t = exportText(); $('io').value = t; navigator.clipboard?.writeText(t).then(() => { $('iomsg').textContent = 'Copied.'; }, () => { $('io').select(); $('iomsg').textContent = 'Select-all is on; press Ctrl+C.'; }) ?? ($('io').select()); };
 $('load').onclick = () => {
   try {
@@ -931,41 +1014,98 @@ $('load').onclick = () => {
     const wsIn = d.ws || { mine: { mods: d.mods, place: d.place } };
     const clean = w => { if (!w || !Array.isArray(w.mods) || w.mods.some(m => !E.CAT[m.cat])) throw new Error('bad'); return { mods: w.mods.map(m => ({ ...m, uid: m.uid || newUid(), effects: (m.effects || []).filter(f => E.EFFECTS[f]) })), place: w.place || {} }; };
     const ws = { mine: clean(wsIn.mine), unlimited: wsIn.unlimited ? clean(wsIn.unlimited) : { mods: [], place: {} } };
-    S = migrate({ machine: d.machine || 'hydroponic', bay: d.bay | 0, ws, mode: d.mode, ucats: d.ucats, ueffs: d.ueffs, goals: d.goals, preset: d.preset || 'custom', w: d.w || [1, 0, 0], m: d.m || [null, null, null], example: false });
+    S = migrate({ machine: d.machine || 'hydroponic', bay: d.bay | 0, ws, mode: d.mode, ucats: d.ucats, ueffs: d.ueffs, goals: d.goals, preset: d.preset || 'custom', w: d.w || [1, 0, 0], m: d.m || [null, null, null], scope: d.scope, imported: d.imported, example: false });
     sel = null; $('iomsg').textContent = 'Loaded.'; syncGoal(); render();
   } catch (e) { $('iomsg').textContent = 'That text is not a saved setup. Paste the full text from Copy.'; }
 };
 $('reset').onclick = () => { S = migrate(example()); sel = null; syncGoal(); render(); runOptimizer({ silent: true }); };
 
+// ---------- save import ----------
+// Every module in the save goes into My modules, tagged with where it came from. The machines found can be
+// shown exactly as they are in the game.
+function importSaveText(text, fileName) {
+  const r = E.importSave(text, name => SPRITES[name] && SPRITES[name].shape);
+  const mods = [], machines = [], seen = {};
+  for (const m of r.machines) {
+    seen[m.id] = (seen[m.id] || 0) + 1;
+    const key = m.id + '#' + seen[m.id];
+    machines.push({ key, id: m.id, name: m.name, stage: m.stage, n: m.mods.length, totals: null });
+  }
+  machines.forEach(mc => { const k = machines.filter(x => x.id === mc.id).length; mc.label = k > 1 ? mc.name + ' ' + mc.key.split('#')[1] : mc.name; });
+  r.machines.forEach((m, i) => {
+    const mc = machines[i];
+    for (const x of m.mods) mods.push({ uid: newUid(), ...x.inst, from: mc.label, fromId: m.id, game: x.place ? { key: mc.key, ...x.place } : null });
+  });
+  r.loose.forEach(inst => mods.push({ uid: newUid(), ...inst, from: 'inventory' }));
+  if (S.mode !== 'mine') setMode('mine');
+  S.mods = mods; S.place = {}; S.example = false; S.scope = 'here';
+  S.imported = { file: fileName, machines, at: new Date().toISOString().slice(0, 10) };
+  sel = null; undoPlace = null; S.tops.mine = [];
+  const skipped = [...new Set(r.skipped)];
+  $('savemsg').innerHTML = `<span class="pos">Imported ${mods.length} module${mods.length === 1 ? '' : 's'}: ${mods.length - r.loose.length} installed in ${machines.length} machine${machines.length === 1 ? '' : 's'}, ${r.loose.length} loose.</span>` +
+    (skipped.length ? ` <span class="note">Skipped unknown items: ${skipped.join(', ')}.</span>` : '') +
+    (mods.some(m => m.fixedBase) ? ' <span class="note">Some modules have stats that do not follow the usual rules; their saved stats are used as they are.</span>' : '');
+  render();
+}
+function showInGame(key) {
+  const mc = S.imported.machines.find(x => x.key === key); if (!mc) return;
+  undoPlace = JSON.parse(JSON.stringify({ mods: S.mods, place: S.place }));
+  S.machine = mc.id; S.bay = mc.stage; S.place = {};
+  for (const m of S.mods) if (m.game && m.game.key === key) { S.place[m.uid] = { x: m.game.x, y: m.game.y, rot: m.game.rot, flip: m.game.flip }; m.rot = m.game.rot; m.flip = m.game.flip; }
+  sel = null; render();
+}
+function renderImport() {
+  const im = S.imported;
+  $('savestate').textContent = im ? `· ${im.file || 'save'} (${im.at})` : '';
+  $('savemachines').innerHTML = im && im.machines.length ? '<div class="h">Machines in that save</div>' + im.machines.map(mc => {
+    const B = E.bayFor(E.MACHINES.find(x => x.id === mc.id), mc.stage);
+    return `<div class="toprow"><span class="rk">${mc.n}</span><span>${mc.label}</span><span class="note">${B.name}${mc.n ? '' : ' · empty'}</span><button data-show="${mc.key}" ${mc.n ? '' : 'disabled'}>Show as in game</button></div>`;
+  }).join('') : '';
+  $('savemachines').querySelectorAll('button[data-show]').forEach(b => b.onclick = () => showInGame(b.dataset.show));
+}
+$('savefile').addEventListener('change', e => {
+  const file = e.target.files && e.target.files[0]; if (!file) return;
+  const fr = new FileReader();
+  fr.onload = () => {
+    try { importSaveText(String(fr.result), file.name); }
+    catch (err) { $('savemsg').innerHTML = `<span class="neg">Could not read that file as a Probably Stolen save. ${String(err.message || err).slice(0, 160)}</span>`; }
+    e.target.value = '';
+  };
+  fr.onerror = () => { $('savemsg').innerHTML = '<span class="neg">That file could not be read.</span>'; };
+  fr.readAsText(file);
+});
+$('clearcache').onclick = () => { try { localStorage.removeItem(CACHE_KEY); } catch (e) {} $('iomsg').textContent = 'Saved searches forgotten.'; };
+
 // ---------- render ----------
 function render() {
   sanitize();
   const m = machine();
-  $('machine').value = m.id; $('bay').value = m.noExpansion ? 0 : S.bay; $('bay').disabled = !!m.noExpansion;
+  $('machine').value = m.id; $('bay').value = m.grid ? 0 : S.bay; $('bay').disabled = !!m.grid;
+  const B = bay(); board.style.setProperty('--bw', B.W); board.style.setProperty('--bh', B.H); document.querySelector('.board-frame').style.setProperty('--bh', B.H);
   const open = [...mask()].filter(c => c === '0').length;
-  $('bayinfo').textContent = `${open} open cells${m.noExpansion ? ' · this machine cannot be expanded' : ''}`;
+  $('bayinfo').textContent = `${B.W}×${B.H}, ${open} open cells${m.grid ? ' · this machine has its own bay and cannot be expanded' : ''}`;
   const R = compute();
-  renderBoard(R); renderReadouts(R); renderInspector(R); renderLocker(); renderSource(); renderTop(); renderGoals();
+  renderBoard(R); renderReadouts(R); renderInspector(R); renderLocker(); renderSource(); renderTop(); renderGoals(); renderImport();
   $('undo').disabled = !undoPlace;
   save();
 }
 syncGoal(); refreshForm(false);
-// ---------- user-supplied sprites ----------
+// ---------- module pictures ----------
 function renderArt() {
-  $('artstate').textContent = ATLAS ? '· using your sprites' : '· simple shapes';
-  $('artclear').hidden = !ATLAS;
+  $('art-shapes').setAttribute('aria-checked', ART !== 'wiki'); $('art-wiki').setAttribute('aria-checked', ART === 'wiki');
+  $('artstate').textContent = ART === 'wiki' ? 'from the wiki' : 'simple shapes';
 }
-$('artfile').addEventListener('change', e => {
-  const file = e.target.files && e.target.files[0]; if (!file) return;
-  const fr = new FileReader();
-  fr.onload = async () => {
-    const err = await loadAtlas(fr.result, true);
-    $('artmsg').innerHTML = err ? `<span class="neg">${err}</span>` : '<span class="pos">Sprites loaded. They are saved in this browser for next time.</span>';
-    e.target.value = ''; renderArt(); render();
-  };
-  fr.onerror = () => { $('artmsg').innerHTML = '<span class="neg">That file could not be read.</span>'; };
-  fr.readAsDataURL(file);
-});
-$('artclear').onclick = () => { ATLAS = null; try { localStorage.removeItem(ART_KEY); } catch (e) {} $('artmsg').textContent = 'Back to simple shapes.'; renderArt(); render(); };
-imgReady.then(() => { renderArt(); render(); if (S.example && !Object.keys(S.place).length) runOptimizer({ silent: true }); });
+function setArt(a) {
+  ART = a; try { localStorage.setItem(ART_KEY, a); } catch (e) {}
+  renderArt(); render();
+  if (a === 'wiki') {
+    $('artmsg').textContent = 'Loading pictures from the wiki…';
+    loadWiki().then(() => { $('artmsg').innerHTML = wikiFailed ? `<span class="neg">${wikiFailed} picture${wikiFailed > 1 ? 's' : ''} could not be loaded from the wiki; those modules keep their simple shape.</span>` : ''; render(); });
+  } else $('artmsg').textContent = '';
+}
+$('art-shapes').onclick = () => setArt('shapes');
+$('art-wiki').onclick = () => setArt('wiki');
+renderArt(); render();
+if (ART === 'wiki') setArt('wiki');
+if (S.example && !Object.keys(S.place).length) runOptimizer({ silent: true });
 </script>

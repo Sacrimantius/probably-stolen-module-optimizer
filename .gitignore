@@ -5,3 +5,5 @@ module-bay-optimizer.html
 *.jpg
 _assets/
 node_modules/
+.claude/
+*.es3
