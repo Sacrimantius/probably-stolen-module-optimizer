@@ -42,7 +42,7 @@ Module, effect and machine names are the game's own English names.
 
 ## Game art
 
-This repository contains **no game art**. Modules are drawn as simple coloured shapes. Under *Module pictures* you can choose to load the module pictures from the [official wiki](https://probablystolen.wiki.gg/wiki/Items/Tags/MODULE) instead; your browser fetches them from the wiki directly. `sprite-data.json` only holds each module's cell shape.
+This page uses **no game art**. Modules are drawn as simple shapes, coloured by module family. `sprite-data.json` only holds each module's cell shape.
 
 ## Building
 

@@ -258,16 +258,6 @@ details summary { cursor: pointer; font-weight: 600; }
       </section>
 
       <section class="card">
-        <h2>Module pictures <small id="artstate"></small></h2>
-        <div class="seg" role="radiogroup" aria-label="Module pictures">
-          <button type="button" id="art-shapes" role="radio">Simple shapes</button>
-          <button type="button" id="art-wiki" role="radio">Pictures from the wiki</button>
-        </div>
-        <p class="note">This page ships no game art. <b>Pictures from the wiki</b> loads the module pictures from the <a href="https://probablystolen.wiki.gg/wiki/Items/Tags/MODULE" target="_blank" rel="noopener">official Probably Stolen wiki</a> into your browser. The wiki only has the square version of each module, so L, T, C, S and H shapes are pieced together from its squares.</p>
-        <p class="note" id="artmsg"></p>
-      </section>
-
-      <section class="card">
         <details id="iobox">
           <summary>Back up or share this setup</summary>
           <p class="note">Copy the text to keep it, or paste a setup and load it.</p>
@@ -289,29 +279,9 @@ const sgn = v => (v > 0 ? '+' + v : '' + v);
 const cls = v => (v > 0 ? 'pos' : v < 0 ? 'neg' : '');
 
 // ---------- images ----------
-// No game art ships with this page. SPRITES holds only each module's cell shape. Players can choose to load
-// the module pictures from the official wiki; their browser fetches them from the wiki directly.
-const ART_KEY = 'module-bay-optimizer-art';
-const WIKI = 'https://probablystolen.wiki.gg/images/';
-// wiki file per base sprite (Items/Tags/MODULE); shape variants are not on the wiki
-const WIKI_FILES = { module_red: 'PS-resources-901-module_red.png', module_green: 'PS-resources-277-module_green.png', module_yellow: 'PS-resources-1147-module_yellow.png', module_red_2: 'PS-resources-1160-module_red_2.png', module_green_2: 'PS-resources-488-module_green_2.png', module_yellow_2: 'PS-resources-496-module_yellow_2.png', module_green_3: 'PS-resources-1080-module_green_3.png', module_black_4: 'PS-resources-1420-module_black_4.png', module_black_5: 'PS-resources-947-module_black_5.png', module_white: 'PS-resources-851-module_white.png', module_corrupt: 'PS-resources-909-module_corrupt.png', module_ruined: 'PS-resources-701-module_ruined.png', node_m: 'PS-resources-748-node_m.png', node_s: 'PS-resources-1394-node_s.png', farm_module_l1: 'PS-resources-821-farm_module_l1.png', farm_module_l2: 'PS-resources-843-farm_module_l2.png', farm_module_l4: 'PS-resources-1221-farm_module_l4.png', farm_module_l5: 'PS-resources-1251-farm_module_l5.png', farm_module_l6: 'PS-resources-1055-farm_module_l6.png', farm_module_l7: 'PS-resources-457-farm_module_l7.png', farm_module_l8: 'PS-resources-861-farm_module_l8.png', farm_module5: 'PS-resources-885-farm_module5.png', farm_module6: 'PS-resources-1331-farm_module6.png', long_module1: 'PS-resources-156-long_module1.png', long_module2: 'PS-resources-1227-long_module2.png', long_module3: 'PS-resources-1029-long_module3.png' };
-// sprite name (with shape variant) -> base sprite name
-const BASE_OF = {};
-E.CATALOG.forEach(c => { BASE_OF[c.sprite] = c.sprite; if (c.variants) E.VARIANTS[c.variants].forEach(v => { BASE_OF[c.sprite + v.id] = c.sprite; }); });
-let ART = 'shapes';
-try { if (localStorage.getItem(ART_KEY) === 'wiki') ART = 'wiki'; } catch (e) {}
-const wikiImg = {}; // base sprite -> Image (loaded) | false (failed)
-let wikiFailed = 0;
-function loadWiki() {
-  const names = Object.keys(WIKI_FILES).filter(n => !(n in wikiImg));
-  return Promise.all(names.map(n => new Promise(res => {
-    const im = new Image();
-    im.onload = () => { wikiImg[n] = im; res(); };
-    im.onerror = () => { wikiImg[n] = false; wikiFailed++; res(); };
-    im.src = WIKI + WIKI_FILES[n];
-  })));
-}
-// Simple pixel shapes when no sprites are loaded, coloured by the module family
+// No game art is used. SPRITES holds only each module's cell shape; modules are drawn as simple pixel
+// shapes coloured by the module family.
+try { localStorage.removeItem('module-bay-optimizer-art'); } catch (e) {} // setting from an older version
 const FAMILY = [[/^module_red/, '#c8463d'], [/^module_green/, '#4a9a45'], [/^module_yellow/, '#d4a72c'], [/^module_black/, '#5a4785'], [/^module_white/, '#c3cad0'], [/^module_(ruined|corrupt)/, '#7d6f66'], [/^node/, '#3f7fbf'], [/^(farm|long)_module/, '#2f9a8f'], [/./, '#8a5fbf']];
 function drawShape(c, sprite) {
   const sh = SPRITES[sprite].shape, col = FAMILY.find(([re]) => re.test(sprite))[1];
@@ -341,12 +311,7 @@ function drawPiece(canvas, sprite, rot, flip) {
   const c = canvas.getContext('2d'); c.imageSmoothingEnabled = false;
   c.clearRect(0, 0, W, H); c.save(); c.translate(W / 2, H / 2); c.rotate(rot * Math.PI / 2); c.scale(flip ? -1 : 1, 1);
   c.translate(-w / 2, -h / 2);
-  const im = ART === 'wiki' && wikiImg[BASE_OF[sprite] || sprite];
-  if (im) {
-    // piece the shape together from the base picture's 16 px cells
-    const bw = Math.max(1, Math.round(im.naturalWidth / 16)), bh = Math.max(1, Math.round(im.naturalHeight / 16));
-    sh.forEach((row, y) => [...row].forEach((ch, x) => { if (ch === '1') c.drawImage(im, (x % bw) * 16, (y % bh) * 16, 16, 16, x * 16, y * 16, 16, 16); }));
-  } else drawShape(c, sprite);
+  drawShape(c, sprite);
   c.restore();
 }
 
@@ -1090,22 +1055,6 @@ function render() {
   save();
 }
 syncGoal(); refreshForm(false);
-// ---------- module pictures ----------
-function renderArt() {
-  $('art-shapes').setAttribute('aria-checked', ART !== 'wiki'); $('art-wiki').setAttribute('aria-checked', ART === 'wiki');
-  $('artstate').textContent = ART === 'wiki' ? 'from the wiki' : 'simple shapes';
-}
-function setArt(a) {
-  ART = a; try { localStorage.setItem(ART_KEY, a); } catch (e) {}
-  renderArt(); render();
-  if (a === 'wiki') {
-    $('artmsg').textContent = 'Loading pictures from the wiki…';
-    loadWiki().then(() => { $('artmsg').innerHTML = wikiFailed ? `<span class="neg">${wikiFailed} picture${wikiFailed > 1 ? 's' : ''} could not be loaded from the wiki; those modules keep their simple shape.</span>` : ''; render(); });
-  } else $('artmsg').textContent = '';
-}
-$('art-shapes').onclick = () => setArt('shapes');
-$('art-wiki').onclick = () => setArt('wiki');
-renderArt(); render();
-if (ART === 'wiki') setArt('wiki');
+render();
 if (S.example && !Object.keys(S.place).length) runOptimizer({ silent: true });
 </script>
